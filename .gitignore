@@ -1,0 +1,20 @@
+# 依赖与缓存
+node_modules/
+.pnpm-store/
+.pnpm-cache/
+.npm/
+
+# 构建以外的东西不忽略：lib/ 与 client/ 是 npm 包的实际产物，直接入库，保证仓库与发布件一致
+
+# 本地与临时
+.env
+.env.*
+*.log
+*.tgz
+.tmp/
+tmp/
+.DS_Store
+Thumbs.db
+
+# 发布时生成
+npm-debug.log*

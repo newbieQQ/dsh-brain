@@ -1,0 +1,21 @@
+# ?????? package.json ? files ??????????????? npm ??
+AGENTS.md
+TODO.md
+TASKS.md
+HANDOFF.md
+NOTES.md
+*.plan.md
+PLAN.md
+scripts/
+src/
+tsconfig*.json
+pnpm-lock.yaml
+package-lock.json
+.pnpm-cache/
+.pnpm-store/
+node_modules/
+*.mjs
+*.log
+*.tgz
+.env
+.env.*
