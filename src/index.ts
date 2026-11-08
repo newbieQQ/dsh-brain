@@ -45,6 +45,8 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     client,
     settings: () => ({ enabled: settings().enabled, clientId: settings().clientId }),
     activityToken: () => store.activityToken(),
+    summary: () => ({ enabled: settings().summaryEnabled, maxChars: settings().summaryMaxChars }),
+    summaryToken: () => store.summaryToken(),
     log: (message) => logger.warn(message),
   })
 
@@ -56,6 +58,9 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     logger.warn(`reporting enabled but no activity token; configure one at ${store.path} or open /cloud-memory`)
   } else {
     logger.info(`reporting to ${effective.baseUrl} as ${effective.clientId}`)
+  }
+  if (effective.summaryEnabled && store.summaryToken() === '') {
+    logger.info('turn summaries are enabled but no summary token is configured; nothing will be staged')
   }
 
   // The host's `Events` map is augmented by @deepseek-ai/dsh-session, which a

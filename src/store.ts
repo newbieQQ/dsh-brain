@@ -26,6 +26,9 @@ export interface PersistedState {
   defaultK?: number
   activityToken?: string
   memoryToken?: string
+  summaryEnabled?: boolean
+  summaryMaxChars?: number
+  summaryToken?: string
 }
 
 /** Masked token view handed to the browser. */
@@ -38,6 +41,7 @@ export interface TokenView {
 export interface SettingsView extends Settings {
   activityToken: TokenView
   memoryToken: TokenView
+  summaryToken: TokenView
   statePath: string
 }
 
@@ -100,6 +104,11 @@ function parseState(raw: string): PersistedState {
     if (activityToken !== undefined) state.activityToken = activityToken
     const memoryToken = cleanString(source.memoryToken)
     if (memoryToken !== undefined) state.memoryToken = memoryToken
+    if (typeof source.summaryEnabled === 'boolean') state.summaryEnabled = source.summaryEnabled
+    const summaryMaxChars = clampInt(source.summaryMaxChars, 1000, 16_000)
+    if (summaryMaxChars !== undefined) state.summaryMaxChars = summaryMaxChars
+    const summaryToken = cleanString(source.summaryToken)
+    if (summaryToken !== undefined) state.summaryToken = summaryToken
     return state
   } catch {
     return { version: 1 }
@@ -158,6 +167,8 @@ export class SettingsStore {
     if (this.state.clientId !== undefined) resolved.clientId = this.state.clientId
     if (this.state.requestTimeoutMs !== undefined) resolved.requestTimeoutMs = this.state.requestTimeoutMs
     if (this.state.defaultK !== undefined) resolved.defaultK = this.state.defaultK
+    if (this.state.summaryEnabled !== undefined) resolved.summaryEnabled = this.state.summaryEnabled
+    if (this.state.summaryMaxChars !== undefined) resolved.summaryMaxChars = this.state.summaryMaxChars
     return resolved
   }
 
@@ -171,15 +182,22 @@ export class SettingsStore {
     return this.state.memoryToken ?? envToken('DSH_CLOUD_MEMORY_MEMORY_TOKEN') ?? ''
   }
 
+  /** The summary:write bearer token (optional; absent disables summaries). */
+  summaryToken(): string {
+    return this.state.summaryToken ?? envToken('DSH_CLOUD_MEMORY_SUMMARY_TOKEN') ?? ''
+  }
+
   /** Masked snapshot for the browser card. */
   describe(): SettingsView {
     const settings = this.settings()
     const activity = this.activityToken()
     const memory = this.memoryToken()
+    const summary = this.summaryToken()
     return {
       ...settings,
       activityToken: { configured: activity !== '', masked: activity === '' ? '' : maskToken(activity) },
       memoryToken: { configured: memory !== '', masked: memory === '' ? '' : maskToken(memory) },
+      summaryToken: { configured: summary !== '', masked: summary === '' ? '' : maskToken(summary) },
       statePath: this.file,
     }
   }
@@ -227,6 +245,21 @@ export class SettingsStore {
       if (defaultK === undefined) return { ok: false, error: 'defaultK must be a number' }
       next.defaultK = defaultK
     }
+    if (patch.summaryEnabled !== undefined) {
+      if (typeof patch.summaryEnabled !== 'boolean') return { ok: false, error: 'summaryEnabled must be a boolean' }
+      next.summaryEnabled = patch.summaryEnabled
+    }
+    if (patch.summaryMaxChars !== undefined) {
+      const summaryMaxChars = clampInt(patch.summaryMaxChars, 1000, 16_000)
+      if (summaryMaxChars === undefined) return { ok: false, error: 'summaryMaxChars must be a number' }
+      next.summaryMaxChars = summaryMaxChars
+    }
+    const summaryToken = cleanString(patch.summaryToken)
+    if (summaryToken !== undefined) {
+      if (!summaryToken.startsWith('cmt_')) return { ok: false, error: 'summary token must start with cmt_' }
+      next.summaryToken = summaryToken
+    }
+    if (patch.clearSummaryToken === true) delete next.summaryToken
     if (patch.clearActivityToken === true) delete next.activityToken
     if (patch.clearMemoryToken === true) delete next.memoryToken
     this.write(next)

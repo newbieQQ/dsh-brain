@@ -89,9 +89,10 @@ function fail(res: ServerResponse, status: number, message: string, asHtml = fal
 /** The payload the page and the client card both consume. */
 function statusPayload(deps: RouteDeps): Record<string, unknown> {
   const view = deps.store.describe()
-  const tokens: Record<'activity' | 'memory', TokenView> = {
+  const tokens: Record<'activity' | 'memory' | 'summary', TokenView> = {
     activity: view.activityToken,
     memory: view.memoryToken,
+    summary: view.summaryToken,
   }
   const settings = {
     enabled: view.enabled,
@@ -99,6 +100,8 @@ function statusPayload(deps: RouteDeps): Record<string, unknown> {
     clientId: view.clientId,
     requestTimeoutMs: view.requestTimeoutMs,
     defaultK: view.defaultK,
+    summaryEnabled: view.summaryEnabled,
+    summaryMaxChars: view.summaryMaxChars,
   }
   return { ok: true, settings, tokens, settingsPath: view.statePath, reporter: deps.reporter.snapshot() }
 }
@@ -194,7 +197,19 @@ async function serveTest(deps: RouteDeps, req: IncomingMessage, res: ServerRespo
         : { ok: false, message: describeError(probe.error) }
     })()
 
-  json(res, 200, { ok: true, activity, memory })
+  const summaryToken = deps.store.summaryToken()
+  const summary = !deps.store.settings().summaryEnabled
+    ? { ok: false, message: '自动摘要已关闭（可在下方勾选开启）' }
+    : summaryToken === ''
+      ? { ok: false, message: '未配置摘要令牌：留空则不做自动摘要' }
+      : await (async () => {
+        const probe = await client.probeSummary(summaryToken)
+        return probe.ok
+          ? { ok: true, message: '摘要令牌有效（只进待确认队列）' }
+          : { ok: false, message: describeError(probe.error) }
+      })()
+
+  json(res, 200, { ok: true, activity, memory, summary })
 }
 
 /** `POST /cloud-memory/flush`. */
@@ -215,6 +230,7 @@ async function serveFlush(deps: RouteDeps, req: IncomingMessage, res: ServerResp
 const TOKEN_LABELS = {
   activity: 'DSH desktop 活动上报',
   memory: 'DSH desktop 记忆读写',
+  summary: 'DSH desktop 对话摘要',
 } as const
 
 /**
@@ -278,6 +294,7 @@ async function serveLogin(deps: RouteDeps, req: IncomingMessage, res: ServerResp
 
   const activity = await client.mintToken(session.data.sessionCookie, 'activity:write', TOKEN_LABELS.activity)
   const memory = await client.mintToken(session.data.sessionCookie, 'memory:write', TOKEN_LABELS.memory)
+  const summary = await client.mintToken(session.data.sessionCookie, 'summary:write', TOKEN_LABELS.summary)
   if (!activity.ok && !memory.ok) {
     const first = activity.ok ? memory : activity
     const reason = first.ok ? '无法创建令牌' : describeError(first.error)
@@ -288,6 +305,7 @@ async function serveLogin(deps: RouteDeps, req: IncomingMessage, res: ServerResp
   const patch: Parameters<SettingsStore['patch']>[0] = {}
   if (activity.ok && typeof activity.data.token === 'string') patch.activityToken = activity.data.token
   if (memory.ok && typeof memory.data.token === 'string') patch.memoryToken = memory.data.token
+  if (summary.ok && typeof summary.data.token === 'string') patch.summaryToken = summary.data.token
   const applied = deps.store.patch(patch)
   if (!applied.ok) {
     json(res, 500, { ok: false, error: applied.error })
@@ -307,6 +325,7 @@ async function serveLogin(deps: RouteDeps, req: IncomingMessage, res: ServerResp
       },
       activity: activity.ok,
       memory: memory.ok,
+      summary: summary.ok,
       warning: failed.ok ? undefined : `部分令牌没有创建成功：${describeError(failed.error)}`,
     },
   })

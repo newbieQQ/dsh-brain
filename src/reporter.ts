@@ -10,7 +10,7 @@
  * Only metadata leaves the process. Prompt text and tool output are never part
  * of a report — the payload builder cannot see them.
  */
-import type { CloudClient, TurnPayload } from './api.ts'
+import type { CloudClient, SummaryMessage, SummaryPayload, TurnPayload } from './api.ts'
 import { describeError } from './api.ts'
 import type { SessionEventLike, SessionLike } from './context-types.ts'
 
@@ -39,6 +39,10 @@ export interface ReporterSnapshot {
   failed: number
   skipped: number
   queued: number
+  summaryAttempted?: number
+  summaryStaged?: number
+  summaryFailed?: number
+  lastSummaryError?: string
   lastSentAt?: number
   lastError?: string
   recent: ReportRecord[]
@@ -51,6 +55,10 @@ export interface ReporterOptions {
   settings: () => { enabled: boolean; clientId: string }
   /** Activity token, or empty when unconfigured. */
   activityToken: () => string
+  /** Effective summary settings (never a token). */
+  summary: () => { enabled: boolean; maxChars: number }
+  /** summary:write token, or empty when summaries are not configured. */
+  summaryToken: () => string
   /** Log sink for operator-visible diagnostics. */
   log: (message: string) => void
 }
@@ -114,15 +122,70 @@ export function conversationIdOf(session: SessionLike | undefined): string | und
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
+
+/** Text pulled out of one `user/message` or `assistant/message` payload. */
+export function textOf(value: unknown, depth = 0): string | undefined {
+  if (depth > 5) return undefined
+  if (typeof value === 'string') return value.trim() === '' ? undefined : value
+  if (Array.isArray(value)) {
+    const parts: string[] = []
+    for (const item of value) {
+      if (item !== null && typeof item === 'object') {
+        const part = item as Record<string, unknown>
+        // Tool calls/results are never summarized: they can carry files and secrets.
+        if (part.type === 'tool_use' || part.type === 'tool_result' || part.type === 'image') continue
+        if (part.type === 'text' && typeof part.text === 'string') {
+          parts.push(part.text)
+          continue
+        }
+      }
+      const nested = textOf(item, depth + 1)
+      if (nested !== undefined) parts.push(nested)
+    }
+    return parts.length === 0 ? undefined : parts.join('\n')
+  }
+  if (value === null || typeof value !== 'object') return undefined
+  const record = value as Record<string, unknown>
+  for (const key of ['text', 'message', 'content', 'body']) {
+    const nested = textOf(record[key], depth + 1)
+    if (nested !== undefined) return nested
+  }
+  return undefined
+}
+
+/** Local redaction: a summary must not carry credentials to the cloud. */
+const REDACTIONS: [RegExp, string][] = [
+  [/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, '[已脱敏：私钥]'],
+  [/\b(sk|ghp|gho|ghs|xox[abprs]|cmt|cmr)_[A-Za-z0-9_-]{12,}/g, '[已脱敏：令牌]'],
+  [/\bBearer\s+[A-Za-z0-9._-]{16,}/gi, 'Bearer [已脱敏]'],
+  [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, '[已脱敏：JWT]'],
+  [/((?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*)[^\s,;]{6,}/gi, '$1[已脱敏]'],
+]
+
+export function redactSecrets(text: string): string {
+  let out = text
+  for (const [pattern, replacement] of REDACTIONS) out = out.replace(pattern, replacement)
+  return out
+}
+
+/** One buffered message, tagged with the turn it belongs to when known. */
+interface BufferedMessage extends SummaryMessage {
+  turn?: number
+}
+
 /**
  * Tracks open turns and reports each finished one.
  *
  * Reporting never blocks the agent loop: a failed POST is queued and retried by
  * {@link flush}, and a service outage only shows up in the status card.
  */
+/** A queued report is retried at most this many times before being dropped. */
+const MAX_RETRY_ATTEMPTS = 5
+
 export class Reporter {
   private readonly startedAt = new Map<string, number>()
   private readonly queue: TurnPayload[] = []
+  private readonly retries = new Map<string, number>()
   private readonly recent: ReportRecord[] = []
   private attempted = 0
   private recorded = 0
@@ -132,6 +195,12 @@ export class Reporter {
   private lastSentAt: number | undefined
   private lastError: string | undefined
   private draining = false
+  /** Redacted message text per conversation, consumed at turn/end. */
+  private readonly transcripts = new Map<string, BufferedMessage[]>()
+  private summaryAttempted = 0
+  private summaryStaged = 0
+  private summaryFailed = 0
+  private lastSummaryError: string | undefined
 
   constructor(private readonly options: ReporterOptions) {}
 
@@ -152,6 +221,10 @@ export class Reporter {
   /** Handle any `session/event`; only `turn/start` and `turn/end` matter here. */
   handleEvent(session: SessionLike | undefined, event: SessionEventLike): void {
     if (event === null || typeof event !== 'object') return
+    if (event.type === 'user/message' || event.type === 'assistant/message') {
+      this.collect(session, event)
+      return
+    }
     if (event.type === 'turn/start') {
       this.handleStart(session, event)
       return
@@ -196,6 +269,69 @@ export class Reporter {
       completed_at: completedAt,
     }
     void this.send(payload)
+    void this.sendSummary(conversationId, key, status)
+  }
+
+  /** Buffer one redacted message for the turn that is still open. */
+  private collect(session: SessionLike | undefined, event: SessionEventLike): void {
+    const conversationId = conversationIdOf(session)
+    if (conversationId === undefined) return
+    const raw = textOf(event.data)
+    if (raw === undefined) return
+    const value = redactSecrets(raw).slice(0, 4000)
+    const buffer = this.transcripts.get(conversationId) ?? []
+    buffer.push({ role: event.type === 'user/message' ? 'user' : 'assistant', text: value, turn: turnOf(event.data) })
+    if (buffer.length > 120) buffer.splice(0, buffer.length - 120)
+    this.transcripts.set(conversationId, buffer)
+  }
+
+  /** Take this turn's messages out of the buffer, capped by the char budget. */
+  private takeTranscript(conversationId: string, turnKey: string): SummaryMessage[] {
+    const buffer = this.transcripts.get(conversationId) ?? []
+    const turn = Number(turnKey.slice(turnKey.lastIndexOf(':') + 1))
+    const picked: SummaryMessage[] = []
+    const rest: BufferedMessage[] = []
+    for (const item of buffer) {
+      const matches = Number.isFinite(turn) && (item.turn === undefined || item.turn === turn)
+      if (matches) picked.push({ role: item.role, text: item.text })
+      else rest.push(item)
+    }
+    this.transcripts.set(conversationId, rest)
+    const maxChars = Math.max(1000, this.options.summary().maxChars)
+    let total = 0
+    const kept: SummaryMessage[] = []
+    for (const message of picked) {
+      if (total + message.text.length > maxChars) break
+      kept.push(message)
+      total += message.text.length
+    }
+    return kept
+  }
+
+  /** Stage one summary; failures only surface in the status card. */
+  private async sendSummary(conversationId: string, turnKey: string, status: TurnStatus): Promise<void> {
+    const summary = this.options.summary()
+    const token = this.options.summaryToken()
+    if (!summary.enabled || token === '' || status !== 'completed') return
+    const messages = this.takeTranscript(conversationId, turnKey)
+    if (messages.length === 0) return
+    const payload: SummaryPayload = { conversation_id: conversationId, turn_id: turnKey, messages }
+    this.summaryAttempted += 1
+    const result = await this.options.client.submitSummary(payload, token)
+    if (result.ok) {
+      this.summaryStaged += typeof result.data.staged === 'number' ? result.data.staged : 0
+      return
+    }
+    if (result.error.status === 0 || result.error.status >= 500) {
+      const retry = await this.options.client.submitSummary(payload, token)
+      if (retry.ok) {
+        this.summaryStaged += typeof retry.data.staged === 'number' ? retry.data.staged : 0
+        return
+      }
+    }
+    this.summaryFailed += 1
+    this.lastSummaryError = describeError(result.error)
+    this.options.log(`cloud-memory: turn summary failed: ${this.lastSummaryError}`)
   }
 
   private push(record: ReportRecord): void {
@@ -213,6 +349,7 @@ export class Reporter {
       const duplicate = result.data.duplicate === true || result.status === 200
       if (duplicate) this.duplicate += 1
       else this.recorded += 1
+      this.retries.delete(payload.turn_id)
       this.lastSentAt = now
       this.push({
         turnId: payload.turn_id,
@@ -261,9 +398,20 @@ export class Reporter {
         if (!result.ok) {
           this.lastError = describeError(result.error)
           this.failed += 1
+          const attempt = (this.retries.get(payload.turn_id) ?? 0) + 1
+          if (attempt >= MAX_RETRY_ATTEMPTS) {
+            // Give up on this turn: a permanently failing endpoint must not keep
+            // an unbounded queue of metadata forever.
+            this.queue.shift()
+            this.retries.delete(payload.turn_id)
+            this.options.log(`cloud-memory: dropping turn report after ${attempt} attempts: ${this.lastError}`)
+            continue
+          }
+          this.retries.set(payload.turn_id, attempt)
           break
         }
         this.queue.shift()
+        this.retries.delete(payload.turn_id)
         sent += 1
         if (result.data.duplicate === true || result.status === 200) this.duplicate += 1
         else this.recorded += 1
@@ -284,6 +432,10 @@ export class Reporter {
       failed: this.failed,
       skipped: this.skipped,
       queued: this.queue.length,
+      summaryAttempted: this.summaryAttempted,
+      summaryStaged: this.summaryStaged,
+      summaryFailed: this.summaryFailed,
+      ...(this.lastSummaryError === undefined ? {} : { lastSummaryError: this.lastSummaryError }),
       ...(this.lastSentAt === undefined ? {} : { lastSentAt: this.lastSentAt }),
       ...(this.lastError === undefined ? {} : { lastError: this.lastError }),
       recent: [...this.recent],

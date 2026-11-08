@@ -119,7 +119,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
     <div class="grid">
       <div>
         <label for="baseUrl">服务基址</label>
-        <input id="baseUrl" type="text" spellcheck="false" placeholder="https://your-memory-host/api/longmemory" />
+        <input id="baseUrl" type="text" spellcheck="false" placeholder="https://mem.qyhhh.top/api/longmemory" />
         <div class="hint">不带结尾斜杠，路径为 /api/longmemory。</div>
       </div>
       <div>
@@ -140,6 +140,15 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
       <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500">
         <input id="enabled" type="checkbox" style="width:auto" /> 启用插件（关闭后不上报、不提供工具）
       </label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label style="margin:0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500">
+        <input id="summaryEnabled" type="checkbox" style="width:auto" /> 轮次结束后自动生成待确认摘要（只进入待确认队列，确认后才写云端）
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center;gap:10px">
+      <label for="summaryMaxChars" style="margin:0;font-size:13px;font-weight:500">单轮摘要字数上限</label>
+      <input id="summaryMaxChars" type="number" min="1000" max="16000" step="500" style="max-width:140px" />
     </div>
   </section>
 
@@ -177,6 +186,11 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
         <label for="memoryToken">记忆读写令牌（memory:write）</label>
         <input id="memoryToken" type="password" spellcheck="false" autocomplete="off" placeholder="留空表示不修改" />
         <div class="hint" id="memoryTokenHint">memory:write 同时允许读取，一个令牌即可覆盖检索与写入；只有 memory:read 时写入会被拒。</div>
+      </div>
+      <div>
+        <label for="summaryToken">对话摘要令牌（summary:write，可选）</label>
+        <input id="summaryToken" type="password" spellcheck="false" autocomplete="off" placeholder="留空表示不修改" />
+        <div class="hint" id="summaryTokenHint">用于 POST /activity/summary：只把已脱敏摘要送进待确认队列。</div>
       </div>
     </div>
     <div class="row" style="margin-top:14px">
@@ -248,6 +262,8 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
     el('requestTimeoutMs').value = settings.requestTimeoutMs || '';
     el('defaultK').value = settings.defaultK || '';
     el('enabled').checked = settings.enabled === true;
+    el('summaryEnabled').checked = settings.summaryEnabled === true;
+    el('summaryMaxChars').value = settings.summaryMaxChars || '';
 
     el('activityTokenHint').innerHTML = '用于 POST /activity/turn。当前 ' +
       (tokens.activity && tokens.activity.configured
@@ -257,13 +273,19 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
       (tokens.memory && tokens.memory.configured
         ? pill('ok', '已配置 ' + tokens.memory.masked)
         : pill('bad', '未配置'));
+    el('summaryTokenHint').innerHTML = '用于轮次结束后的自动摘要（只进待确认队列）。当前 ' +
+      (tokens.summary && tokens.summary.configured
+        ? pill('ok', '已配置 ' + tokens.summary.masked)
+        : pill('sk', '未配置，自动摘要不会触发'));
 
     var stats = [
       ['上报成功', reporter.recorded || 0],
       ['重复忽略', reporter.duplicate || 0],
       ['失败', reporter.failed || 0],
       ['已跳过', reporter.skipped || 0],
-      ['待重试', reporter.queued || 0]
+      ['待重试', reporter.queued || 0],
+      ['摘要待确认', reporter.summaryStaged || 0],
+      ['摘要失败', reporter.summaryFailed || 0]
     ];
     el('stats').innerHTML = stats.map(function (pair) {
       return '<div class="stat"><div class="k">' + pair[0] + '</div><div class="v">' + pair[1] + '</div></div>';
@@ -314,12 +336,16 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
       clientId: el('clientId').value.trim(),
       requestTimeoutMs: Number(el('requestTimeoutMs').value),
       defaultK: Number(el('defaultK').value),
-      enabled: el('enabled').checked
+      enabled: el('enabled').checked,
+      summaryEnabled: el('summaryEnabled').checked,
+      summaryMaxChars: Number(el('summaryMaxChars').value)
     };
     var activity = el('activityToken').value.trim();
     var memory = el('memoryToken').value.trim();
+    var summary = el('summaryToken').value.trim();
     if (activity !== '') patch.activityToken = activity;
     if (memory !== '') patch.memoryToken = memory;
+    if (summary !== '') patch.summaryToken = summary;
     fetch('/cloud-memory/config', {
       method: 'PUT',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -328,6 +354,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
       if (!body || body.ok !== true) { toast('保存失败：' + ((body && body.error) || 'unknown')); return; }
       el('activityToken').value = '';
       el('memoryToken').value = '';
+      el('summaryToken').value = '';
       render(body);
       toast('已保存');
     }).catch(function (error) { toast('保存失败：' + error.message); });

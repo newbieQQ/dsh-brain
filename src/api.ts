@@ -41,6 +41,26 @@ export interface TurnAck {
   duplicate?: boolean
 }
 
+/** One transcript message sent for turn summarization (text only). */
+export interface SummaryMessage {
+  role: 'user' | 'assistant'
+  text: string
+}
+
+/** `POST /activity/summary` request body. */
+export interface SummaryPayload {
+  conversation_id: string
+  turn_id: string
+  messages: SummaryMessage[]
+}
+
+/** Staging outcome: how many proposals were queued for confirmation. */
+export interface SummaryAck {
+  staged?: number
+  skipped?: number
+  full?: boolean
+}
+
 /** One search hit as the service indexes it. */
 export interface MemoryHit {
   id?: string
@@ -224,6 +244,24 @@ export class CloudClient {
   /** Report one conversation turn (activity:write token). */
   reportTurn(payload: TurnPayload, token: string): Promise<CloudResult<TurnAck>> {
     return this.request<TurnAck>('POST', '/activity/turn', payload, token)
+  }
+
+  /** Stage one turn summary as pending proposals (summary:write token). */
+  submitSummary(payload: SummaryPayload, token: string): Promise<CloudResult<SummaryAck>> {
+    return this.request<SummaryAck>('POST', '/activity/summary', payload, token)
+  }
+
+  /**
+   * Verify a summary token without staging anything.
+   *
+   * The endpoint authenticates before it validates the body, so an empty
+   * object coming back `400 invalid_input` proves the scope is right.
+   */
+  async probeSummary(token: string): Promise<CloudResult<{ authenticated: true }>> {
+    const result = await this.request<unknown>('POST', '/activity/summary', {}, token)
+    if (result.ok) return { ok: true, status: result.status, data: { authenticated: true } }
+    if (result.error.status === 400) return { ok: true, status: 400, data: { authenticated: true } }
+    return { ok: false, error: result.error }
   }
 
   /**

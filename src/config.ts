@@ -7,10 +7,12 @@
 /** Defaults written into cordis.patch.yml; also the fallback for missing keys. */
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
-  baseUrl: 'https://your-memory-host/api/longmemory',
+  baseUrl: 'https://mem.qyhhh.top/api/longmemory',
   clientId: 'dsh-desktop',
-  requestTimeoutMs: 8000,
+  requestTimeoutMs: 5000,
   defaultK: 10,
+  summaryEnabled: true,
+  summaryMaxChars: 6000,
 }
 
 /** Effective, fully-resolved settings. */
@@ -25,6 +27,10 @@ export interface Settings {
   requestTimeoutMs: number
   /** Default result count for `memory_search`. */
   defaultK: number
+  /** Stage a turn summary as pending proposals after each completed round. */
+  summaryEnabled: boolean
+  /** Maximum transcript characters sent for one summary (privacy/cost cap). */
+  summaryMaxChars: number
 }
 
 /** Raw row config as it comes out of the cordis loader. */
@@ -76,5 +82,8 @@ export function settingsFromConfig(raw: unknown): Partial<Settings> {
   if (timeout !== undefined) result.requestTimeoutMs = timeout
   const defaultK = boundedInt(source.defaultK, 1, 100)
   if (defaultK !== undefined) result.defaultK = defaultK
+  if (typeof source.summaryEnabled === 'boolean') result.summaryEnabled = source.summaryEnabled
+  const summaryMaxChars = boundedInt(source.summaryMaxChars, 1000, 16_000)
+  if (summaryMaxChars !== undefined) result.summaryMaxChars = summaryMaxChars
   return result
 }
