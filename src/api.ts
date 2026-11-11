@@ -301,6 +301,25 @@ export class CloudClient {
     return this.request<TurnAck>('POST', '/activity/turn', payload, token)
   }
 
+  /**
+   * Read-only reachability probe: any HTTP answer (even 401 or 404) proves the
+   * host is up. This is what separates "服务不可达" from "令牌无效" in the card,
+   * and it never sends a credential.
+   */
+  async reach(): Promise<{ ok: boolean; status: number; message: string }> {
+    try {
+      const response = await fetch(`${this.options.baseUrl()}/status`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(this.options.timeoutMs()),
+      })
+      return { ok: true, status: response.status, message: `服务可达（HTTP ${response.status}）` }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      return { ok: false, status: 0, message: `服务不可达：${reason}` }
+    }
+  }
+
   /** Stage one turn summary as pending proposals (summary:write token). */
   submitSummary(payload: SummaryPayload, token: string): Promise<CloudResult<SummaryAck>> {
     return this.request<SummaryAck>('POST', '/activity/summary', payload, token)

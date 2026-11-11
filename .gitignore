@@ -18,3 +18,9 @@ Thumbs.db
 
 # 发布时生成
 npm-debug.log*
+node_modules/
+.cloud-memory/
+
+# generated previews (node preview-card.mjs)
+_preview/
+preview-debug.mjs

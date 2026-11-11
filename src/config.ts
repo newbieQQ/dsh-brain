@@ -68,6 +68,33 @@ export function normalizeBaseUrl(value: unknown): string | undefined {
   }
 }
 
+/**
+ * A packaged default that was never replaced by a real service.
+ *
+ * `cordis.patch.yml` ships `https://your-memory-host/...` so a fresh profile
+ * boots without touching a production endpoint. Such an address must be shown
+ * as "未配置服务" — never as a healthy connection.
+ */
+export function isPlaceholderBaseUrl(value: string): boolean {
+  const normalized = normalizeBaseUrl(value)
+  if (normalized === undefined) return true
+  try {
+    const host = new URL(normalized).hostname.toLowerCase()
+    return host === 'your-memory-host' || host === 'example.com'
+  } catch {
+    return true
+  }
+}
+
+/** Service origin of one base URL, or '' when it cannot be parsed. */
+export function originOf(value: string): string {
+  try {
+    return new URL(value).origin
+  } catch {
+    return ''
+  }
+}
+
 /** Clamp a numeric config value into an integer range, else undefined. */
 function boundedInt(value: unknown, min: number, max: number): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined

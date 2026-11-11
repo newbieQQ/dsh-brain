@@ -1,8 +1,16 @@
 # dsh-brain
 
+> **0.8.0 统一版（2026-11-11）**：本地开发线（0.7.0，含技能市场 / MCP 市场 /
+> 多来源技能树 / 跨软件工作区清单 / 工作区级技能写）与云端线（0.5.1，完成
+> dsh-brain 改名的部署半区）在此合流。插件现以 **dsh-brain** 发布：
+> 包名、页面路由（`/dsh-brain/*`，旧 `/cloud-memory/*` 保留为别名）、
+> 客户端模块 id、设置侧车（`dsh-brain.json` 等）全部切换；旧侧车在首次
+> 加载时自动复制迁移、原文件保留；令牌环境变量 `DSH_BRAIN_*` 优先、
+> 旧名继续有效。Mnemon provider 引用改为 `dsh-brain/mnemon-provider`。
+
 把 DeepSeek Harness 接到 LongMemory 云端记忆服务：**每轮对话结束自动上报一条活动记录**（只上传元数据），并把云端记忆库变成 agent 可用的工具。
 
-当前版本 **0.1.1**，含宿主端与浏览器端两部分：host 半负责活动上报与工具注册，`client/index.js` 提供「设置 → 插件 → 云端记忆」配置卡片。
+当前版本 **0.8.0**，含宿主端与浏览器端两部分：host 半负责活动上报与工具注册，`client/index.js` 提供「设置 → 插件 → 云端记忆」配置卡片。
 
 ## 它做什么
 
@@ -16,24 +24,6 @@
 
 **绝不上传**：提示词正文、工具输出、文件内容、本地路径、令牌。上报载荷在类型层面就只有六个字段，构造它的函数拿不到正文。
 
-## 改名与迁移（v0.5.0）
-
-本插件原名 **dsh-cloud-memory**，自 v0.5.0 起改名为 **dsh-brain**（仓库同步改名）。
-
-**自动迁移**（首次启动新版时完成，无需手动）：
-
-- 设置与令牌文件 `$DSH_HOME/cloud-memory.json` → 复制为 `dsh-brain.json`（旧文件保留不删）
-- 技能同步状态 `$DSH_HOME/cloud-memory-skills.json` → 复制为 `dsh-brain-skills.json`（同上）
-- 旧路由 `/cloud-memory/*` 全部保留为别名，与新路由 `/dsh-brain/*` 指向同一处理函数
-- 旧环境变量 `DSH_CLOUD_MEMORY_*_TOKEN` 继续生效（新名 `DSH_BRAIN_*_TOKEN` 优先）
-
-**需要手动改两处**：
-
-1. 插件注册：从 profile 的 bundles 里移除旧的 `dsh-cloud-memory`，改装 `dsh-brain`（`dsh plugin --profile desktop add dsh-brain` 后完全重启）。
-2. Mnemon 配置里 provider 一行改名：`- use: dsh-brain/mnemon-provider`。
-
-不变的东西：`clientId`（默认 `dsh-desktop`）、技能包校验格式（`cloud-memory-skill-v1` 是与云端约定的线格式）、云端 API 地址与令牌本身。
-
 ## 安装
 
 ```powershell
@@ -45,14 +35,14 @@ dsh plugin --profile desktop add dsh-brain
 
 ```jsonc
 {
-  "dependencies": { "dsh-brain": "^0.5.0" },
-  "dsh": { "profile": { "bundles": [ /* ..., */ "dsh-brain" ] } }
+  "dependencies": { "dsh-brain": "^0.8.0" },
+  "dsh": { "profile": { "bundles": [ /* ..., */ "dsh-cloud-memory" ] } }
 }
 ```
 
-重启 DSH，在「设置 → 插件 → 云端记忆」里配置（备用入口：`http://127.0.0.1:<当次端口>/dsh-brain`）。
+重启 DSH，在「设置 → 插件 → 云端记忆」里配置（备用入口：`http://127.0.0.1:<当次端口>/cloud-memory`）。
 
-> `baseUrl` 默认是占位符 `https://your-memory-host/api/longmemory`。**首次使用必须先把它改成你自己的 LongMemory 服务地址**（配置页里填，或写进 `$DSH_HOME/dsh-brain.json`），否则上报与工具都会连接失败。
+> `baseUrl` 默认是占位符 `https://your-memory-host/api/longmemory`。**首次使用必须先把它改成你自己的 LongMemory 服务地址**（配置页里填，或写进 `$DSH_HOME/cloud-memory.json`），否则上报与工具都会连接失败。
 
 ## 登录（推荐）
 
@@ -61,11 +51,11 @@ dsh plugin --profile desktop add dsh-brain
 ```
 密码 → POST /api/auth/login（一次性会话 cookie）
      → POST /api/auth/tokens ×2（activity:write、memory:write）
-     → 只把两个 cmt_… 令牌写进 $DSH_HOME/dsh-brain.json
+     → 只把两个 cmt_… 令牌写进 $DSH_HOME/cloud-memory.json
      → 密码与会话 cookie 立即丢弃
 ```
 
-- 密码只在这一串请求里存在：不落盘、不写日志、不随 `/dsh-brain/status` 回显。
+- 密码只在这一串请求里存在：不落盘、不写日志、不随 `/cloud-memory/status` 回显。
 - 服务端只保存令牌哈希，令牌可单独撤销；改密码不影响已签发令牌。
 - 服务地址不是 HTTPS（且不是 loopback）时插件拒绝发送密码。
 - 管理员账号不能签发个人令牌（服务端 `403 management_only`），请用普通用户。
@@ -73,7 +63,7 @@ dsh plugin --profile desktop add dsh-brain
 
 ## 配置
 
-配置文件 `$DSH_HOME/dsh-brain.json`（默认 `%USERPROFILE%\.dsh\dsh-brain.json`），字段：
+配置文件 `$DSH_HOME/cloud-memory.json`（默认 `%USERPROFILE%\.dsh\cloud-memory.json`），字段：
 
 | 字段 | 默认 | 说明 |
 | --- | --- | --- |
@@ -103,12 +93,12 @@ dsh plugin --profile desktop add dsh-brain
 
 ```yaml
 providers:
-  - use: dsh-brain/mnemon-provider
+  - use: dsh-cloud-memory/mnemon-provider
     instanceId: longmemory
 ```
 
 之后在 Mnemon 的插件页会出现 LongMemory 的服务字段（Endpoint / Memory
-token），留空即复用本插件已有的 `dsh-brain.json` 配置，一处配置两处生效。
+token），留空即复用本插件已有的 `cloud-memory.json` 配置，一处配置两处生效。
 每个记忆空间映射一个 LongMemory 项目：发现流程会自动列出账号下的全部
 项目，外加一个不分项目的「全部」空间；也可以在空间上手动填 Project ID。
 
@@ -125,7 +115,7 @@ v1 范围：支持 发现 / 状态 / 搜索 / 浏览 / 写入 / 按 id 读取；
 自 0.3.0 起，插件在记忆之外还双向同步技能：云端技能中心是总汇，本机
 技能目录（默认 `$DSH_HOME/skills`）是工作副本，本地的浏览、启停、分类
 仍归 DSH 技能管理器。插件启动 5 秒后首跑，之后每 15 分钟对账一次；
-结果与冲突列表见 `GET /dsh-brain/status` 的 `skills` 字段，聊天里
+结果与冲突列表见 `GET /cloud-memory/status` 的 `skills` 字段，聊天里
 也可以用 `skill_list` 工具查看云端清单。
 
 - **下行**：云端技能按平台自己的规矩落地——先验整包清单哈希、再逐
@@ -149,7 +139,7 @@ v1 范围：支持 发现 / 状态 / 搜索 / 浏览 / 写入 / 按 id 读取；
 
 ## 技能管理（内置）
 
-自 0.4.0 起，常用的本地管理也长在插件里，页面在 `/dsh-brain/skills`
+自 0.4.0 起，常用的本地管理也长在插件里，页面在 `/cloud-memory/skills`
 （配置页有链接进入）：
 
 - **列表**：本机全部技能，标注来源（云端交付 / 本地已传云端 / 本地）
@@ -175,12 +165,12 @@ git 安装与同名跳过、以及停用技能与同步引擎的配合共 15 项
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| GET | `/dsh-brain` | 配置页面 |
-| GET | `/dsh-brain/status` | 设置 + 上报计数 + 最近 50 条记录（令牌只返回掩码） |
-| PUT | `/dsh-brain/config` | 应用设置补丁（令牌留空表示不修改） |
-| POST | `/dsh-brain/login` | 账号密码登录，换取两个令牌并保存（密码不落盘） |
-| POST | `/dsh-brain/test` | 分别校验两个令牌（活动令牌用空载荷探测，鉴权先于载荷校验，返回 400 即代表令牌有效，不会写入记录） |
-| POST | `/dsh-brain/flush` | 立即补发待重试队列 |
+| GET | `/cloud-memory` | 配置页面 |
+| GET | `/cloud-memory/status` | 设置 + 上报计数 + 最近 50 条记录（令牌只返回掩码） |
+| PUT | `/cloud-memory/config` | 应用设置补丁（令牌留空表示不修改） |
+| POST | `/cloud-memory/login` | 账号密码登录，换取两个令牌并保存（密码不落盘） |
+| POST | `/cloud-memory/test` | 分别校验两个令牌（活动令牌用空载荷探测，鉴权先于载荷校验，返回 400 即代表令牌有效，不会写入记录） |
+| POST | `/cloud-memory/flush` | 立即补发待重试队列 |
 
 写接口会校验同源 `Origin`，跨站请求返回 403。
 
@@ -197,7 +187,7 @@ git 安装与同名跳过、以及停用技能与同步引擎的配合共 15 项
 
 ## 故障排查
 
-- **热力图不涨**：看 `/dsh-brain/status` 的 `reporter.skipped` 与 `lastError`；常见原因是没配 `activityToken`、插件被 `enabled:false` 关掉，或令牌缺 `activity:write` scope。
+- **热力图不涨**：看 `/cloud-memory/status` 的 `reporter.skipped` 与 `lastError`；常见原因是没配 `activityToken`、插件被 `enabled:false` 关掉，或令牌缺 `activity:write` scope。
 - **工具报“未配置记忆令牌”**：填 `memoryToken`；写入还需要云端已配置 WebDAV 主存储（否则服务端 409 `storage_not_configured`）。
 - **网络不可用**：上报会进队列，恢复后 30 秒内自动补发；也可以在配置页点“重试上报队列”。
 - **令牌泄漏风险**：令牌只存在本机 JSON 文件里，页面只回显掩码（`cmt_act…0001`）。文件权限依赖用户目录 ACL（Windows 无 POSIX 位）。
@@ -218,3 +208,28 @@ pnpm publish --access public --no-git-checks
 `prepack` 会先重建 `lib/`，`prepublishOnly` 会先跑 `pack-guard`：包里一旦出现 `AGENTS.md`、`TODO.md`、`*.mjs` 探测脚本、`tsconfig*.json`、本机路径、个人域名或令牌原文，发布立刻中止。
 
 > lifecycle 脚本要求 `node` 在 `PATH` 里。若报 `'node' is not recognized`，先把 DSH 运行时自带 node 的 `bin` 目录加进 `$env:Path` 再发布。
+
+## 统一管理卡（0.7.0）
+
+「设置 → 云端记忆」现在是三个页签：**连接与上报 / 技能管理 / MCP 管理**。
+
+- 身份验证卡内切换「账号登录 / 手动令牌」，切换不清凭据、不发请求。
+- 服务地址换 origin 时，旧令牌一律清除（`credentialsCleared`），要求重新认证。
+- 技能安装是两步：`install/plan` 把仓库克隆到隔离暂存目录并列出候选（含冲突、脚本、体积），`install/commit` 只写入选中的目录；`.git` 与符号链接不复制，仓库脚本不执行。
+- 卸载同样是两步：`uninstall/plan` 给出真实目录、文件数与不可恢复提示并签发一次性 token，`remove` 必须带 `confirmed: true` 与匹配 token。
+- **技能市场（P3）**：接入经验证来源 `anthropics/skills` 的 `.claude-plugin/marketplace.json`；搜索→详情→`market/plan`（固定提交）→勾选安装。客户端只传 provider/id，从不传 URL。
+- **更新/回退（P3）**：安装写 `.skill-source.json`；`skills/update/check|apply` 与 `skills/rollback` 更新前整目录备份，过期提交拒绝。
+- **同步冲突（P3）**：`sync/status|run|resolve` 提供两侧信息，逐项「保留本地 / 采用云端 / 手动合并」。
+- **MCP 管理（P4）**：读取宿主 `dsh-mcp-connector` 的同源公开接口 `/mcp-connector/api`；覆盖连接、健康检查、工具、启停、重连、两段式移除、目录市场连接、自定义 HTTP/stdio、JSON 导入、配置编辑、作用域与治理策略。
+
+接口清单见 `docs/management-surface.md`；验收脚本见 `verify-*.mjs`（含 `verify-market` / `verify-skill-update` / `verify-sync-resolve` / `verify-mcp-bridge` / `verify-upgrade` / `verify-concurrency` / `verify-theme`）。
+
+### 技能来源树
+
+「技能管理」按软件来源分组（DSH / 公共 Agent / Codex / WorkBuddy / Claude Code / OpenCode），
+每个来源下是分类，分类下是技能：
+
+- 分类只记在 `$DSH_HOME/cloud-memory-skill-groups.json` 里，**不移动文件**；删除分类只是把技能放回「未分类」。
+- 只有 DSH 来源的开关是真的（目录移入/移出 `skills-disabled`，新会话生效）；其他软件的目录本卡只读，开关标记为「仅本卡」。
+- 来源行提供「＋ 新建分类」「打开目录」「来源开关」；分类行提供「＋ 加入技能 / 改名 / 删除 / 分类开关」；技能行提供详情、启停、卸载。
+- 预览（真实数据、光照/暗色）：`node preview-card.mjs` 生成 `_preview/skill-tree*.png`。

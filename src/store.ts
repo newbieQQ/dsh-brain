@@ -11,10 +11,10 @@
  * The file holds the two bearer tokens and the UI-editable overrides. It is
  * NEVER uploaded, never printed, and `describe()` only exposes a mask.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, chmodSync } from 'node:fs'
+import { existsSync, copyFileSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync, chmodSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
-import { DEFAULT_SETTINGS, normalizeBaseUrl, settingsFromConfig, type Settings } from './config.ts'
+import { DEFAULT_SETTINGS, isPlaceholderBaseUrl, normalizeBaseUrl, originOf, settingsFromConfig, type Settings } from './config.ts'
 
 /** Persisted document schema. */
 export interface PersistedState {
@@ -43,6 +43,10 @@ export interface SettingsView extends Settings {
   memoryToken: TokenView
   summaryToken: TokenView
   statePath: string
+  /** False when the address is still the packaged placeholder. */
+  baseUrlConfigured: boolean
+  /** Origin of the effective address, for the change-confirmation UI. */
+  baseUrlOrigin: string
 }
 
 /** `$DSH_HOME` (or `~/.dsh`) — the same resolution DSH core uses. */
@@ -57,7 +61,7 @@ export function settingsPath(): string {
   return resolve(dshHome(), 'dsh-brain.json')
 }
 
-/** Pre-rename (<=0.4.x) settings sidecar name. */
+/** Pre-rename (<=0.7.x) settings sidecar name. */
 export function legacySettingsPath(): string {
   return resolve(dshHome(), 'cloud-memory.json')
 }
@@ -221,6 +225,8 @@ export class SettingsStore {
       memoryToken: { configured: memory !== '', masked: memory === '' ? '' : maskToken(memory) },
       summaryToken: { configured: summary !== '', masked: summary === '' ? '' : maskToken(summary) },
       statePath: this.file,
+      baseUrlConfigured: !isPlaceholderBaseUrl(settings.baseUrl),
+      baseUrlOrigin: originOf(settings.baseUrl),
     }
   }
 
@@ -231,8 +237,11 @@ export class SettingsStore {
    * stored token, and an explicit boolean `clear*` flag removes one. That way
    * the browser never has to round-trip a secret it cannot read.
    */
-  patch(patch: Record<string, unknown>): { ok: boolean; error?: string } {
+  patch(patch: Record<string, unknown>): { ok: boolean; error?: string; clearedTokens?: string[] } {
     const next: PersistedState = { ...this.state }
+    const beforeOrigin = originOf(this.settings().baseUrl)
+    /** Tokens this very request supplied; they survive an address change. */
+    const provided: string[] = []
     if (patch.enabled !== undefined) {
       if (typeof patch.enabled !== 'boolean') return { ok: false, error: 'enabled must be a boolean' }
       next.enabled = patch.enabled
@@ -251,11 +260,13 @@ export class SettingsStore {
     if (activityToken !== undefined) {
       if (!activityToken.startsWith('cmt_')) return { ok: false, error: 'activity token must start with cmt_' }
       next.activityToken = activityToken
+      provided.push('activity')
     }
     const memoryToken = cleanString(patch.memoryToken)
     if (memoryToken !== undefined) {
       if (!memoryToken.startsWith('cmt_')) return { ok: false, error: 'memory token must start with cmt_' }
       next.memoryToken = memoryToken
+      provided.push('memory')
     }
     if (patch.requestTimeoutMs !== undefined) {
       const requestTimeoutMs = clampInt(patch.requestTimeoutMs, 1000, 60_000)
@@ -280,13 +291,33 @@ export class SettingsStore {
     if (summaryToken !== undefined) {
       if (!summaryToken.startsWith('cmt_')) return { ok: false, error: 'summary token must start with cmt_' }
       next.summaryToken = summaryToken
+      provided.push('summary')
     }
     if (patch.clearSummaryToken === true) delete next.summaryToken
     if (patch.clearActivityToken === true) delete next.activityToken
     if (patch.clearMemoryToken === true) delete next.memoryToken
+
+    // Switching the service origin must not hand the previous service's
+    // bearer tokens to the new one: everything this request did not explicitly
+    // replace is dropped, and the caller is told so it can ask to re-authenticate.
+    const afterOrigin = originOf(next.baseUrl ?? this.configDefaults.baseUrl)
+    const clearedTokens: string[] = []
+    if (beforeOrigin !== '' && afterOrigin !== '' && beforeOrigin !== afterOrigin) {
+      const credentials = [
+        ['activity', 'activityToken'],
+        ['memory', 'memoryToken'],
+        ['summary', 'summaryToken'],
+      ] as const
+      for (const [label, key] of credentials) {
+        if (next[key] === undefined) continue
+        if (provided.includes(label)) continue
+        delete next[key]
+        clearedTokens.push(label)
+      }
+    }
     this.write(next)
     this.state = next
-    return { ok: true }
+    return clearedTokens.length === 0 ? { ok: true } : { ok: true, clearedTokens }
   }
 
   /** File size in bytes, for a "sidecar exists" hint in the card. */

@@ -29,7 +29,7 @@ export function renderConfigPage(options: { version: string; settingsPath: strin
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>云端记忆 · dsh-brain</title>
+<title>云端记忆 · DSH 插件</title>
 <style>
 :root { color-scheme: light dark; }
 * { box-sizing: border-box; }
@@ -105,7 +105,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
 </head>
 <body>
 <div class="wrap">
-  <h1>云端记忆 · dsh-brain</h1>
+  <h1>云端记忆 · DSH 插件</h1>
   <p class="sub">v${escapeHtml(options.version)} · 每轮结束上报活动计数 · 提供 memory_search / memory_read / memory_add 工具</p>
   <p class="sub"><a href="/dsh-brain/skills">技能管理（列表 · 启停 · 安装）→</a></p>
 

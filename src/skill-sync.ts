@@ -30,11 +30,11 @@
  *    silently trimmed.
  */
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, cp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { CloudClient, SkillBundle, SkillSummary, SkillUploadFile } from './api.ts'
 import { describeError } from './api.ts'
-import { migrateLegacyFile, dshHome } from './store.ts'
+import { dshHome, migrateLegacyFile } from './store.ts'
 
 /** Cloud skill names: lowercase kebab, at most 64 characters. */
 export const CLOUD_SKILL_NAME = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -569,4 +569,201 @@ export class SkillSync {
       hasScripts: files.some((file) => file.rel.startsWith('scripts/')),
     }
   }
+
+  /** Encode local files exactly the way the upload path does. */
+  private toUploadFiles(files: LocalFile[]): SkillUploadFile[] {
+    return files.map((file) => {
+      const ext = file.rel.slice(file.rel.lastIndexOf('.')).toLowerCase()
+      return TEXT_EXT.has(ext)
+        ? { path: file.rel, content: file.buffer.toString('utf8') }
+        : { path: file.rel, base64: file.buffer.toString('base64') }
+    })
+  }
+
+  /** Drop one name from the in-memory conflict list after it is resolved. */
+  private dropConflict(name: string): void {
+    this.current = { ...this.current, conflicts: this.current.conflicts.filter((conflict) => conflict.name !== name) }
+  }
+
+  /**
+   * Both sides of every conflict from the last pass, so a human can decide.
+   * Read-only: it never changes a file or uploads anything.
+   */
+  async conflictDetails(): Promise<SyncConflictDetail[]> {
+    const conflicts = this.current.conflicts
+    if (conflicts.length === 0) return []
+    let cloudItems: (SkillSummary & { name: string })[] = []
+    try {
+      const listing = await this.deps.client().listSkills()
+      if (listing.ok) {
+        cloudItems = (listing.data.items ?? []).filter(
+          (item): item is SkillSummary & { name: string } => typeof item.name === 'string',
+        )
+      }
+    } catch {
+      // Listing failed: still show the local side with a null cloud side.
+    }
+    const byName = new Map(cloudItems.map((item) => [item.name, item]))
+    const out: SyncConflictDetail[] = []
+    for (const conflict of conflicts) {
+      const rootDir = join(this.skillsRoot(), conflict.name)
+      const parkedDir = join(this.holdingRoot(), conflict.name)
+      let location: 'root' | 'holding' | 'none' = 'none'
+      let dir = ''
+      if (await isDirectory(rootDir)) { location = 'root'; dir = rootDir }
+      else if (await isDirectory(parkedDir)) { location = 'holding'; dir = parkedDir }
+      let files = 0
+      let bytes = 0
+      let modified = false
+      if (dir !== '') {
+        try {
+          const local = await this.readSkillFiles(dir)
+          files = local.length
+          bytes = local.reduce((sum, file) => sum + file.buffer.length, 0)
+          const delivery = await this.readDelivery(dir)
+          modified = delivery === undefined ? true : !(await this.deliveredIntact(dir, delivery))
+        } catch {
+          // Unreadable folder: report zeroed counts, never throw the list away.
+        }
+      }
+      const cloudItem = byName.get(conflict.name)
+      out.push({
+        name: conflict.name,
+        reason: conflict.reason,
+        local: { exists: location !== 'none', location, files, bytes, modified },
+        cloud: cloudItem === undefined
+          ? null
+          : {
+              ...(cloudItem.revision === undefined ? {} : { revision: cloudItem.revision }),
+              ...(cloudItem.manifest_sha256 === undefined ? {} : { manifest: cloudItem.manifest_sha256 }),
+              ...(cloudItem.files === undefined ? {} : { files: cloudItem.files }),
+              ...(cloudItem.bytes === undefined ? {} : { bytes: cloudItem.bytes }),
+              ...(cloudItem.enabled === undefined ? {} : { enabled: cloudItem.enabled }),
+            },
+        canKeepLocal: location !== 'none',
+        canTakeCloud: cloudItem !== undefined,
+        note: '“保留本地”把本地版本上传成新的云端版本；“采用云端”先备份本地再覆盖；“手动合并”只返回两侧信息，不改文件。',
+      })
+    }
+    return out
+  }
+
+  /** Resolve one conflict: keep local / take cloud / manual (no write). */
+  async resolveConflict(nameInput: unknown, actionInput: unknown): Promise<SyncResolveResult> {
+    const name = typeof nameInput === 'string' ? nameInput : ''
+    if (name === '' || !CLOUD_SKILL_NAME.test(name)) throw new Error('invalid_name')
+    const action = actionInput === 'keep_local' || actionInput === 'take_cloud' || actionInput === 'manual' ? actionInput : ''
+    if (action === '') throw new Error('invalid_action')
+    if (this.running) throw new Error('sync_running')
+    const root = this.skillsRoot()
+    const rootDir = join(root, name)
+    const parkedDir = join(this.holdingRoot(), name)
+    const inRoot = await isDirectory(rootDir)
+    const parked = !inRoot && (await isDirectory(parkedDir))
+    const dir = inRoot ? rootDir : parked ? parkedDir : ''
+    const client = this.deps.client()
+    const listing = await client.listSkills()
+    if (!listing.ok) throw new Error(`skill listing failed: ${describeError(listing.error)}`)
+    const cloud = (listing.data.items ?? []).find((item) => item.name === name)
+    const state = await this.loadState()
+
+    if (action === 'manual') {
+      return {
+        name,
+        action,
+        applied: false,
+        note: '已返回两侧信息，未改动任何文件；手工编辑后在下次同步前保存即可。',
+        ...(cloud?.revision === undefined ? {} : { revision: cloud.revision }),
+      }
+    }
+
+    if (action === 'keep_local') {
+      if (dir === '') throw new Error('no_local_copy')
+      const skill = await this.readLocalSkill(dir, name)
+      if (skill === undefined) throw new Error('not_a_skill')
+      if (typeof skill === 'string') throw new Error(skill)
+      const files = this.toUploadFiles(skill.files)
+      const operationId = `dsh-skill-${randomUUID()}`
+      if (cloud === undefined) {
+        const created = await client.createSkill({
+          name: skill.name,
+          description: skill.description,
+          execution_mode: skill.hasScripts ? 'local-bundle' : 'prompt-only',
+          files,
+          expected_revision: 0,
+          operation_id: operationId,
+        })
+        if (!created.ok) throw new Error(`upload_failed: ${describeError(created.error)}`)
+        const revision = created.data.skill?.revision ?? created.data.revision ?? 1
+        state.uploaded[name] = { folder: name, revision, manifest: skill.manifest, syncedAt: new Date().toISOString() }
+        delete state.removed[name]
+        await this.saveState(state)
+        this.dropConflict(name)
+        return { name, action, applied: true, revision, note: '已把本地版本新建到云端。' }
+      }
+      const updated = await client.updateSkill(name, {
+        description: skill.description,
+        files,
+        expected_revision: cloud.revision ?? 0,
+        operation_id: operationId,
+      })
+      if (!updated.ok) {
+        if (updated.error.code === 'revision_conflict') throw new Error('stale_revision')
+        throw new Error(`upload_failed: ${describeError(updated.error)}`)
+      }
+      const revision = updated.data.skill?.revision ?? updated.data.revision ?? (cloud.revision ?? 0) + 1
+      state.uploaded[name] = { folder: name, revision, manifest: skill.manifest, syncedAt: new Date().toISOString() }
+      delete state.removed[name]
+      await this.saveState(state)
+      this.dropConflict(name)
+      return { name, action, applied: true, revision, note: '已用本地版本覆盖云端（revision 已更新）。' }
+    }
+
+    // take_cloud
+    if (cloud === undefined) throw new Error('no_cloud_copy')
+    const bundle = await client.skillBundle(name)
+    if (!bundle.ok) throw new Error(`bundle_failed: ${describeError(bundle.error)}`)
+    if (linkedSkillManifest(bundle.data.files) !== bundle.data.manifest_sha256) throw new Error('manifest_mismatch')
+    let backup = ''
+    if (dir !== '') {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      backup = join(dshHome(), '.dsh-brain-backups', 'sync', name, stamp)
+      await mkdir(join(backup, '..'), { recursive: true })
+      await cp(dir, backup, { recursive: true, filter: (p) => !p.split(/[\\/]/).includes('.git') })
+    }
+    await this.install(cloud, bundle.data, parked ? this.holdingRoot() : root)
+    state.delivered[name] = { manifest: bundle.data.manifest_sha256 }
+    delete state.removed[name]
+    await this.saveState(state)
+    this.dropConflict(name)
+    return {
+      name,
+      action,
+      applied: true,
+      revision: bundle.data.revision,
+      ...(backup === '' ? {} : { backup }),
+      note: '已采用云端版本覆盖本地（本地已备份）。',
+    }
+  }
+}
+
+/** One conflict with both sides, for the resolve UI. */
+export interface SyncConflictDetail {
+  name: string
+  reason: string
+  local: { exists: boolean; location: 'root' | 'holding' | 'none'; files: number; bytes: number; modified: boolean }
+  cloud: { revision?: number; manifest?: string; files?: number; bytes?: number; enabled?: boolean } | null
+  canKeepLocal: boolean
+  canTakeCloud: boolean
+  note: string
+}
+
+/** Outcome of one conflict resolution. */
+export interface SyncResolveResult {
+  name: string
+  action: 'keep_local' | 'take_cloud' | 'manual'
+  applied: boolean
+  revision?: number
+  backup?: string
+  note: string
 }

@@ -12,7 +12,7 @@ export function renderSkillsPage(options: { version: string }): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>技能管理 · dsh-brain</title>
+<title>技能管理 · 云端记忆插件</title>
 <style>
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f6f7f9; color: #1c2333; }
   .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 48px; }

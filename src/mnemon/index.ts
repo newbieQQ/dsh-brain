@@ -23,7 +23,7 @@ import { LongMemoryProvider } from './driver.ts'
 export { LongMemoryProvider, descriptor }
 
 /** Keep in sync with the package version (asserted by the verify script). */
-const PROVIDER_VERSION = '0.5.1'
+const PROVIDER_VERSION = '0.8.0'
 
 export const definition = defineMemorySpaceProviderDefinition({
   manifest: {

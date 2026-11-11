@@ -15,8 +15,12 @@ import { Reporter } from './reporter.ts'
 import { createLegacyRoutes, createRoutes } from './routes.ts'
 import { join } from 'node:path'
 import { SettingsStore, dshHome } from './store.ts'
-import { SkillSync, skillsStatePath } from './skill-sync.ts'
+import { SkillSync , skillsStatePath } from './skill-sync.ts'
 import { SkillAdmin, skillsHoldingDir } from './skill-admin.ts'
+import { SkillGroupManager, detectSources } from './skill-groups.ts'
+import { ClaudePluginMarketplaceProvider, MarketService } from './market.ts'
+import { SkillUpdater } from './skill-update.ts'
+import { ClientRegistry } from './clients.ts'
 import { createMemoryTools, createSkillTools } from './tools.ts'
 
 /** Package name; also the client bundle id. */
@@ -26,7 +30,7 @@ export const name = 'dsh-brain'
 export const inject = ['webServer']
 
 /** Version reported by the status card. */
-const VERSION = '0.5.1'
+const VERSION = '0.8.0'
 
 /** How often the skill directory is reconciled with the cloud center. */
 const SKILL_SYNC_INTERVAL_MS = 15 * 60_000
@@ -74,6 +78,38 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     syncRunning: () => skillSync.stats().running,
     log: (message) => logger.info(message),
   })
+
+  // The tree's sources are detected per call so a directory created while the
+  // process runs shows up on the next refresh.
+  const skillGroups = new SkillGroupManager({
+    sources: () => detectSources(),
+    admin: skillAdmin,
+    log: (message) => logger.info(message),
+  })
+
+  // One verified market source to start with: the Claude Code plugin marketplace
+  // manifest that Anthropic publishes. Entry ids never carry a URL, so the card
+  // cannot make the host fetch an arbitrary repository.
+  const market = new MarketService([
+    new ClaudePluginMarketplaceProvider({
+      id: 'anthropic-skills',
+      label: 'Anthropic Agent Skills',
+      description: 'Anthropic 公开的 Claude 技能市场（.claude-plugin/marketplace.json）',
+      repo: 'anthropics/skills',
+      ref: 'main',
+    }),
+  ])
+
+  const updater = new SkillUpdater({
+    admin: skillAdmin,
+    skillsRoot: () => skillSync.skillsRoot(),
+    holdingDir: () => skillsHoldingDir(),
+    syncRunning: () => skillSync.stats().running,
+    log: (message) => logger.info(message),
+  })
+
+  // Cross-software / workspace inventory. Read-only for every client except DSH.
+  const clients = new ClientRegistry()
   // Announce at most once per activation so a missing token is obvious in logs.
   const effective = settings()
   if (!effective.enabled) {
@@ -122,8 +158,8 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
   if (webServer === undefined) {
     logger.warn('webServer service unavailable; the configuration page stays disabled')
   } else {
-    const routes = createRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin })
-    routes.push(...createLegacyRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin }))
+    const routes = createRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin, groups: skillGroups, market, sync: skillSync, updates: updater, clients })
+    routes.push(...createLegacyRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin, groups: skillGroups, market, sync: skillSync, updates: updater, clients }))
     for (const route of routes) {
       ctx.effect(() => webServer.register(route), `dsh-brain: route ${route.path}`)
     }
