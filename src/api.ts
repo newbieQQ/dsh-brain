@@ -106,6 +106,61 @@ export interface AddResponse {
   [key: string]: unknown
 }
 
+/** One skill as the cloud skill center lists it (`GET /skills` item). */
+export interface SkillSummary {
+  name: string
+  description?: string
+  category?: string | null
+  execution_mode?: string
+  enabled?: boolean
+  revision?: number
+  manifest_sha256?: string
+  files?: number
+  bytes?: number
+  script_changed?: boolean
+  [key: string]: unknown
+}
+
+/** `GET /skills` response. */
+export interface SkillListing {
+  items?: SkillSummary[]
+  total?: number
+  trash_total?: number
+  [key: string]: unknown
+}
+
+/** One file inside a skill bundle (`GET /skills/:name/bundle`). */
+export interface SkillBundleFile {
+  path: string
+  sha256: string
+  size?: number
+  encoding?: string
+  /** Base64 payload; present on every bundle file. */
+  data: string
+}
+
+/** `GET /skills/:name/bundle` response. */
+export interface SkillBundle {
+  name: string
+  revision: number
+  manifest_sha256: string
+  script_changed?: boolean
+  script_changes?: string[]
+  files: SkillBundleFile[]
+  [key: string]: unknown
+}
+
+/** One file in a skill write payload: text inline, or base64 for binaries. */
+export type SkillUploadFile = { path: string; content: string } | { path: string; base64: string }
+
+/** `POST /skills` / `PATCH /skills/:name` outcome. */
+export interface SkillWriteResult {
+  skill?: SkillSummary
+  revision?: number
+  manifest_sha256?: string
+  [key: string]: unknown
+}
+
 /** One dashboard account as the login endpoint returns it. */
 export interface AccountInfo {
   id?: string
@@ -323,6 +378,26 @@ export class CloudClient {
   /** Storage configuration state (memory token). */
   storageStatus(): Promise<CloudResult<Record<string, unknown>>> {
     return this.request<Record<string, unknown>>('GET', '/storage/status')
+  }
+
+  /** List the cloud skill center inventory (memory token). */
+  listSkills(): Promise<CloudResult<SkillListing>> {
+    return this.request<SkillListing>('GET', '/skills')
+  }
+
+  /** Fetch one skill bundle with hashed, base64-carried files (memory token). */
+  skillBundle(name: string): Promise<CloudResult<SkillBundle>> {
+    return this.request<SkillBundle>('GET', `/skills/${encodeURIComponent(name)}/bundle`)
+  }
+
+  /** Create one skill in the center; `expected_revision` must be 0 (memory token). */
+  createSkill(body: Record<string, unknown>): Promise<CloudResult<SkillWriteResult>> {
+    return this.request<SkillWriteResult>('POST', '/skills', body)
+  }
+
+  /** Replace one skill's files/description at an expected revision (memory token). */
+  updateSkill(name: string, body: Record<string, unknown>): Promise<CloudResult<SkillWriteResult>> {
+    return this.request<SkillWriteResult>('PATCH', `/skills/${encodeURIComponent(name)}`, body)
   }
 
   /**

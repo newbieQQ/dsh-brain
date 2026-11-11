@@ -1,6 +1,6 @@
 {
   "name": "dsh-cloud-memory",
-  "version": "0.1.1",
+  "version": "0.4.1",
   "description": "Cloud memory for DSH: report one activity turn per conversation round and expose memory_search / memory_read / memory_add tools against a LongMemory cloud endpoint.",
   "type": "module",
   "license": "MIT",
@@ -9,7 +9,8 @@
     ".": "./lib/index.js",
     "./client": "./client/index.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./mnemon-provider": "./lib/mnemon/index.js"
   },
   "files": [
     "lib",
@@ -37,10 +38,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "dsh-mnemon-source-memory-spaces": "^0.5.1"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "dsh-mnemon-source-memory-spaces": {
       "optional": true
     }
   },
@@ -57,19 +62,21 @@
     "@types/react": "~18.3.1",
     "react": "^18.2.0",
     "tsdown": "^0.22.2",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "dsh-mnemon-source-memory-spaces": "^0.5.11"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "keywords": [
+    "agent",
+    "cloud-memory",
     "dsh",
     "dsh-plugin",
-    "memory",
-    "cloud-memory",
     "longmemory",
-    "agent"
+    "memory",
+    "mnemon"
   ],
   "author": "dsh-cloud-memory contributors"
 }

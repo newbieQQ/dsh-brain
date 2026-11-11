@@ -20,6 +20,8 @@ function reporterWith(client, overrides = {}) {
     client,
     settings: () => ({ enabled: true, clientId: 'dsh-desktop' }),
     activityToken: () => 'cmt_activity_token_for_test',
+    summary: () => ({ enabled: false, maxChars: 6000 }),
+    summaryToken: () => '',
     log: () => {},
     ...overrides,
   })

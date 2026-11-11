@@ -10,3 +10,4 @@
         enabled: true
         baseUrl: https://your-memory-host/api/longmemory
         clientId: dsh-desktop
+        skillsSyncEnabled: true

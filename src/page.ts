@@ -107,6 +107,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
 <div class="wrap">
   <h1>云端记忆 · DSH 插件</h1>
   <p class="sub">v${escapeHtml(options.version)} · 每轮结束上报活动计数 · 提供 memory_search / memory_read / memory_add 工具</p>
+  <p class="sub"><a href="/cloud-memory/skills">技能管理（列表 · 启停 · 安装）→</a></p>
 
   <section class="card">
     <h2>当前状态</h2>

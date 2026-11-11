@@ -66,10 +66,92 @@ dsh plugin --profile desktop add dsh-cloud-memory
 | `defaultK` | `10` | `memory_search` 未指定 `k` 时的条数。 |
 | `activityToken` | — | `activity:write` 令牌，形如 `cmt_…`。 |
 | `memoryToken` | — | `memory:read` / `memory:write` 令牌，形如 `cmt_…`。 |
+| `skillsSyncEnabled` | `true` | 云端技能中心与本机技能目录的双向同步开关。 |
+| `skillsDir` | 空 | 本机技能目录覆盖；为空时用 `$DSH_HOME/skills`。 |
 
 两个令牌也可以用环境变量 `DSH_CLOUD_MEMORY_ACTIVITY_TOKEN`、`DSH_CLOUD_MEMORY_MEMORY_TOKEN` 覆盖。
 
 > 一个 key 只有一种 scope，所以需要两个令牌：只做上报就只填活动令牌，只做检索就只填记忆令牌。
+
+## Mnemon 集成（记忆空间 Provider）
+
+自 0.2.0 起，本包同时是一个 Mnemon 记忆空间 Provider：Mnemon 管本地在场
+（运行时记忆每轮注入），长期记忆的每一次读、写都实时穿透到 LongMemory——
+云端是真源，本地不留长期副本。因此其他工具（Claude Code、Codex、看板）
+刚写进 LongMemory 的记忆，DSH 里立刻能召回。
+
+启用方式：在 Mnemon 的记忆空间来源配置里给 providers 列表加一行
+（profile 覆盖或 bundle 配置均可），然后重启 DSH：
+
+```yaml
+providers:
+  - use: dsh-cloud-memory/mnemon-provider
+    instanceId: longmemory
+```
+
+之后在 Mnemon 的插件页会出现 LongMemory 的服务字段（Endpoint / Memory
+token），留空即复用本插件已有的 `cloud-memory.json` 配置，一处配置两处生效。
+每个记忆空间映射一个 LongMemory 项目：发现流程会自动列出账号下的全部
+项目，外加一个不分项目的「全部」空间；也可以在空间上手动填 Project ID。
+
+v1 范围：支持 发现 / 状态 / 搜索 / 浏览 / 写入 / 按 id 读取；暂不支持
+删除（LongMemory 客户端接口没有删除操作）与图谱读取（接口未暴露，
+返回空图谱且能力声明为关）。离线时长期记忆不可用，Mnemon 的本地
+运行时记忆不受影响。
+
+验证：`node verify-mnemon-provider.mjs`（对本地 stub 服务跑通
+发现→写入→召回→项目隔离全流程）。
+
+## 技能同步
+
+自 0.3.0 起，插件在记忆之外还双向同步技能：云端技能中心是总汇，本机
+技能目录（默认 `$DSH_HOME/skills`）是工作副本，本地的浏览、启停、分类
+仍归 DSH 技能管理器。插件启动 5 秒后首跑，之后每 15 分钟对账一次；
+结果与冲突列表见 `GET /cloud-memory/status` 的 `skills` 字段，聊天里
+也可以用 `skill_list` 工具查看云端清单。
+
+- **下行**：云端技能按平台自己的规矩落地——先验整包清单哈希、再逐
+  文件验 sha256，原子写入，并留下 `.manifest.json` 交付记录；云端标
+  记了「脚本已变更待确认」的包不会自动安装，先在看板里确认。
+- **上行**：本地原创技能（管理器安装、导入或手写的）自动发布到云
+  端；之后的修改以新修订发布，带 `expected_revision` 守卫，云端被
+  别人先改过就报冲突、不强行覆盖。
+
+防事故的规矩：云端交付的技能从不回传，本地改动它只报
+`locally_modified` 冲突、原样不动；本地删除不删云端，且同版本不会
+被重新拉回（云端出了新版才会再下来）；同名技能两边都有时互不抢占，
+报 `name_collision`。云端只接受固定布局（根目录只有 `SKILL.md`，
+其余文件进 `references/`、`scripts/`、`assets/`，扩展名有白名单，
+单文件 ≤512 KiB、整包 ≤2 MiB、≤100 个文件），不符合的本地技能报
+`unsupported_layout`，不会为了迁就而裁剪文件。
+
+验证：`node verify-skills-sync.mjs`（对本地 stub 技能中心跑通
+下行安装、上行发布与修订、改云端技能报冲突、同名冲突、脚本待审、
+布局拒绝、删除不传播全流程）。
+
+## 技能管理（内置）
+
+自 0.4.0 起，常用的本地管理也长在插件里，页面在 `/cloud-memory/skills`
+（配置页有链接进入）：
+
+- **列表**：本机全部技能，标注来源（云端交付 / 本地已传云端 / 本地）
+  与云端修订号；
+- **启停**：停用是把技能文件夹挪到 `$DSH_HOME/skills-disabled/` 暂存
+  ——DSH 看不见它，自然不会加载；启用再挪回来。不碰 DSH 内部机制，
+  可靠且可逆。同步引擎认识暂存区：停用的云端技能不会被拉回技能目
+  录，云端出了新版会在暂存区里原地更新；
+- **删除**：真删，文件夹直接删除、不可恢复（页面上会先弹确认）。
+  只删本地：云端副本不动，删掉的同版本也不会被同步重新拉回来；
+- **从 git 安装**：粘贴 https:// 或 file:// 仓库地址，浅克隆后把仓
+  库里所有带 `SKILL.md` 的文件夹装进技能目录；不执行仓库里的任何
+  代码，同名技能跳过不覆盖。
+
+范围就到 DSH 技能目录这一处：技能市场的发现中心、扫描其它工具
+（Codex、Cursor 等）的技能目录不在内置范围——还需要那些的话继续
+留着第三方管理器，两边不冲突；不需要的话现在可以卸掉它了。
+
+验证：`node verify-skill-admin.mjs`（列表与来源判定、启停、真删、
+git 安装与同名跳过、以及停用技能与同步引擎的配合共 15 项）。
 
 ## HTTP 接口
 

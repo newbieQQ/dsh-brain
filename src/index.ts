@@ -13,8 +13,11 @@ import { CloudClient } from './api.ts'
 import type { CloudMemoryContext, SessionEventLike, SessionLike } from './context-types.ts'
 import { Reporter } from './reporter.ts'
 import { createRoutes } from './routes.ts'
-import { SettingsStore } from './store.ts'
-import { createMemoryTools } from './tools.ts'
+import { join } from 'node:path'
+import { SettingsStore, dshHome } from './store.ts'
+import { SkillSync } from './skill-sync.ts'
+import { SkillAdmin, skillsHoldingDir } from './skill-admin.ts'
+import { createMemoryTools, createSkillTools } from './tools.ts'
 
 /** Package name; also the client bundle id. */
 export const name = 'dsh-cloud-memory'
@@ -23,7 +26,10 @@ export const name = 'dsh-cloud-memory'
 export const inject = ['webServer']
 
 /** Version reported by the status card. */
-const VERSION = '0.1.0'
+const VERSION = '0.4.1'
+
+/** How often the skill directory is reconciled with the cloud center. */
+const SKILL_SYNC_INTERVAL_MS = 15 * 60_000
 
 /** How often queued reports are retried. */
 const RETRY_INTERVAL_MS = 30_000
@@ -50,6 +56,24 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     log: (message) => logger.warn(message),
   })
 
+  const skillSync = new SkillSync({
+    client: () => client,
+    settings: () => ({
+      enabled: settings().enabled,
+      skillsSyncEnabled: settings().skillsSyncEnabled,
+      skillsDir: settings().skillsDir,
+    }),
+    log: (message) => logger.info(message),
+    holdingDir: () => skillsHoldingDir(),
+  })
+
+  const skillAdmin = new SkillAdmin({
+    skillsRoot: () => skillSync.skillsRoot(),
+    holdingDir: () => skillsHoldingDir(),
+    syncStatePath: () => join(dshHome(), 'cloud-memory-skills.json'),
+    syncRunning: () => skillSync.stats().running,
+    log: (message) => logger.info(message),
+  })
   // Announce at most once per activation so a missing token is obvious in logs.
   const effective = settings()
   if (!effective.enabled) {
@@ -84,11 +108,12 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = (toolsCtx as CloudMemoryContext).tools
     if (tools === undefined) return
-    for (const tool of createMemoryTools({
+    const toolDeps = {
       client: () => client,
       memoryToken: () => store.memoryToken(),
       settings: () => ({ enabled: settings().enabled, defaultK: settings().defaultK }),
-    })) {
+    }
+    for (const tool of [...createMemoryTools(toolDeps), ...createSkillTools(toolDeps)]) {
       toolsCtx.effect(() => tools.register(tool), `dsh-cloud-memory: tool ${tool.name}`)
     }
   })
@@ -97,7 +122,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
   if (webServer === undefined) {
     logger.warn('webServer service unavailable; the configuration page stays disabled')
   } else {
-    const routes = createRoutes({ version: VERSION, store, reporter, client: () => client })
+    const routes = createRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin })
     for (const route of routes) {
       ctx.effect(() => webServer.register(route), `dsh-cloud-memory: route ${route.path}`)
     }
@@ -114,4 +139,15 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     timer.unref?.()
     return () => clearInterval(timer)
   }, 'dsh-cloud-memory: retry timer')
+
+  ctx.effect(() => {
+    const run = () => {
+      if (store.memoryToken() !== '') void skillSync.syncOnce().catch(() => {})
+    }
+    const first = setTimeout(run, 5_000)
+    first.unref?.()
+    const timer = setInterval(run, SKILL_SYNC_INTERVAL_MS)
+    timer.unref?.()
+    return () => { clearTimeout(first); clearInterval(timer) }
+  }, 'dsh-cloud-memory: skill sync timer')
 }

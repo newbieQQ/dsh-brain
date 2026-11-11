@@ -20,6 +20,10 @@ import type { SettingsView, SettingsStore, TokenView } from './store.ts'
 import type { Reporter } from './reporter.ts'
 import { renderConfigPage } from './page.ts'
 import type { CloudMemoryWebRoute } from './context-types.ts'
+import type { SkillSyncStats } from './skill-sync.ts'
+import { SkillAdminError } from './skill-admin.ts'
+import type { SkillAdmin } from './skill-admin.ts'
+import { renderSkillsPage } from './skill-page.ts'
 
 /** Route constants — kept in one place so the client half can reuse them. */
 export const ROUTES = {
@@ -29,6 +33,7 @@ export const ROUTES = {
   login: '/cloud-memory/login',
   test: '/cloud-memory/test',
   flush: '/cloud-memory/flush',
+  skills: '/cloud-memory/skills',
 } as const
 
 /** Largest request body we accept (a settings patch is tiny). */
@@ -40,6 +45,10 @@ export interface RouteDeps {
   store: SettingsStore
   reporter: Reporter
   client: () => CloudClient
+  /** Latest skill-sync stats, when the engine is wired in. */
+  skills?: () => SkillSyncStats
+  /** Local skill management (list / toggle / trash / install), when wired in. */
+  admin?: SkillAdmin
 }
 
 /** Collect a request body as UTF-8 text. */
@@ -102,8 +111,13 @@ function statusPayload(deps: RouteDeps): Record<string, unknown> {
     defaultK: view.defaultK,
     summaryEnabled: view.summaryEnabled,
     summaryMaxChars: view.summaryMaxChars,
+    skillsSyncEnabled: view.skillsSyncEnabled,
+    skillsDir: view.skillsDir,
   }
-  return { ok: true, settings, tokens, settingsPath: view.statePath, reporter: deps.reporter.snapshot() }
+  return {
+    ok: true, settings, tokens, settingsPath: view.statePath, reporter: deps.reporter.snapshot(),
+    ...(deps.skills === undefined ? {} : { skills: deps.skills() }),
+  }
 }
 
 /** Serve the configuration page. */
@@ -331,6 +345,104 @@ async function serveLogin(deps: RouteDeps, req: IncomingMessage, res: ServerResp
   })
 }
 
+
+/** HTTP status for one skill-admin failure code. */
+function adminStatus(code: string): number {
+  switch (code) {
+    case 'not_found': return 404
+    case 'invalid_name':
+    case 'invalid_url': return 400
+    case 'collision':
+    case 'sync_running': return 409
+    case 'no_skills_found': return 422
+    case 'git_failed': return 502
+    default: return 500
+  }
+}
+
+/**
+ * The skill management surface, one prefix route:
+ * `GET  /cloud-memory/skills`        the management page
+ * `GET  /cloud-memory/skills/api`    inventory JSON (skills + trash)
+ * `POST /cloud-memory/skills/toggle` { folder, enabled }
+ * `POST /cloud-memory/skills/remove` { folder }
+ * `POST /cloud-memory/skills/install` { url }
+ */
+async function serveSkills(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (deps.admin === undefined) {
+    fail(res, 404, 'skills-admin-unavailable')
+    return
+  }
+  const admin = deps.admin
+  const suffix = (req.url ?? '').split('?')[0]?.slice(ROUTES.skills.length) ?? ''
+  if (suffix === '' || suffix === '/') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      fail(res, 405, 'method-not-allowed', true)
+      return
+    }
+    const html = renderSkillsPage({ version: deps.version })
+    res.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'content-length': Buffer.byteLength(html),
+    })
+    if (req.method === 'HEAD') res.end()
+    else res.end(html)
+    return
+  }
+  if (suffix === '/api') {
+    if (req.method !== 'GET') {
+      fail(res, 405, 'method-not-allowed')
+      return
+    }
+    json(res, 200, { ok: true, ...(await admin.list()) })
+    return
+  }
+  const actions: Record<string, (body: Record<string, unknown>) => Promise<Record<string, unknown>>> = {
+    '/toggle': async (body) => admin.setEnabled(body.folder, body.enabled === true),
+    '/remove': async (body) => admin.remove(body.folder),
+    '/install': async (body) => admin.installFromGit(body.url),
+  }
+  const action = actions[suffix]
+  if (action === undefined) {
+    fail(res, 404, 'unknown-skill-route')
+    return
+  }
+  if (req.method !== 'POST') {
+    fail(res, 405, 'method-not-allowed')
+    return
+  }
+  if (!sameOrigin(req)) {
+    fail(res, 403, 'origin-rejected')
+    return
+  }
+  const type = (req.headers['content-type'] ?? '').toLowerCase()
+  if (!type.startsWith('application/json')) {
+    fail(res, 415, 'json-required')
+    return
+  }
+  let body: unknown
+  try {
+    body = JSON.parse(await readBody(req))
+  } catch {
+    fail(res, 400, 'invalid-json')
+    return
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    fail(res, 400, 'invalid-body')
+    return
+  }
+  try {
+    json(res, 200, { ok: true, ...(await action(body as Record<string, unknown>)) })
+  } catch (error) {
+    if (error instanceof SkillAdminError) {
+      json(res, adminStatus(error.code), { ok: false, code: error.code, error: error.message })
+    } else {
+      json(res, 500, { ok: false, code: 'internal', error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+}
+
 /** Build the exact-route table registered with the host web server. */
 export function createRoutes(deps: RouteDeps): CloudMemoryWebRoute[] {
   return [
@@ -363,6 +475,11 @@ export function createRoutes(deps: RouteDeps): CloudMemoryWebRoute[] {
       kind: 'exact',
       path: ROUTES.flush,
       handler: (req, res) => serveFlush(deps, req, res),
+    },
+    {
+      kind: 'prefix',
+      path: ROUTES.skills,
+      handler: (req, res) => serveSkills(deps, req, res),
     },
   ]
 }

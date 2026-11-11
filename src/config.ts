@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultK: 10,
   summaryEnabled: true,
   summaryMaxChars: 6000,
+  skillsSyncEnabled: true,
+  skillsDir: '',
 }
 
 /** Effective, fully-resolved settings. */
@@ -31,6 +33,10 @@ export interface Settings {
   summaryEnabled: boolean
   /** Maximum transcript characters sent for one summary (privacy/cost cap). */
   summaryMaxChars: number
+  /** Bidirectional skill sync between the cloud skill center and the local skills directory. */
+  skillsSyncEnabled: boolean
+  /** Local skills directory override; empty means `$DSH_HOME/skills`. */
+  skillsDir: string
 }
 
 /** Raw row config as it comes out of the cordis loader. */
@@ -85,5 +91,7 @@ export function settingsFromConfig(raw: unknown): Partial<Settings> {
   if (typeof source.summaryEnabled === 'boolean') result.summaryEnabled = source.summaryEnabled
   const summaryMaxChars = boundedInt(source.summaryMaxChars, 1000, 16_000)
   if (summaryMaxChars !== undefined) result.summaryMaxChars = summaryMaxChars
+  if (typeof source.skillsSyncEnabled === 'boolean') result.skillsSyncEnabled = source.skillsSyncEnabled
+  if (typeof source.skillsDir === 'string') result.skillsDir = source.skillsDir.trim().slice(0, 512)
   return result
 }
