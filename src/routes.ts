@@ -1,13 +1,13 @@
 /**
  * HTTP surface served by the host web server.
  *
- * All routes live under `/cloud-memory`:
- * - `GET  /cloud-memory`         configuration page (HTML)
- * - `GET  /cloud-memory/status`  settings + reporter counters (JSON)
- * - `PUT  /cloud-memory/config`  apply a settings patch (JSON)
- * - `POST /cloud-memory/login`   password sign-in, mints both tokens (JSON)
- * - `POST /cloud-memory/test`    validate both tokens (JSON)
- * - `POST /cloud-memory/flush`   retry the queued reports (JSON)
+ * All routes live under `/dsh-brain`:
+ * - `GET  /dsh-brain`         configuration page (HTML)
+ * - `GET  /dsh-brain/status`  settings + reporter counters (JSON)
+ * - `PUT  /dsh-brain/config`  apply a settings patch (JSON)
+ * - `POST /dsh-brain/login`   password sign-in, mints both tokens (JSON)
+ * - `POST /dsh-brain/test`    validate both tokens (JSON)
+ * - `POST /dsh-brain/flush`   retry the queued reports (JSON)
  *
  * Every JSON route is same-origin only: the tokens are read from the local file
  * and never echoed back, but a cross-site `PUT` could still be used to redirect
@@ -27,13 +27,13 @@ import { renderSkillsPage } from './skill-page.ts'
 
 /** Route constants — kept in one place so the client half can reuse them. */
 export const ROUTES = {
-  page: '/cloud-memory',
-  status: '/cloud-memory/status',
-  config: '/cloud-memory/config',
-  login: '/cloud-memory/login',
-  test: '/cloud-memory/test',
-  flush: '/cloud-memory/flush',
-  skills: '/cloud-memory/skills',
+  page: '/dsh-brain',
+  status: '/dsh-brain/status',
+  config: '/dsh-brain/config',
+  login: '/dsh-brain/login',
+  test: '/dsh-brain/test',
+  flush: '/dsh-brain/flush',
+  skills: '/dsh-brain/skills',
 } as const
 
 /** Largest request body we accept (a settings patch is tiny). */
@@ -136,7 +136,7 @@ function servePage(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): 
   else res.end(html)
 }
 
-/** `GET /cloud-memory/status`. */
+/** `GET /dsh-brain/status`. */
 function serveStatus(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): void {
   if (req.method !== 'GET') {
     fail(res, 405, 'method-not-allowed')
@@ -145,7 +145,7 @@ function serveStatus(deps: RouteDeps, req: IncomingMessage, res: ServerResponse)
   json(res, 200, statusPayload(deps))
 }
 
-/** `PUT /cloud-memory/config`. */
+/** `PUT /dsh-brain/config`. */
 async function serveConfig(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'PUT' && req.method !== 'POST') {
     fail(res, 405, 'method-not-allowed')
@@ -179,7 +179,7 @@ async function serveConfig(deps: RouteDeps, req: IncomingMessage, res: ServerRes
   json(res, 200, statusPayload(deps))
 }
 
-/** `POST /cloud-memory/test` — validate both tokens without recording anything. */
+/** `POST /dsh-brain/test` — validate both tokens without recording anything. */
 async function serveTest(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     fail(res, 405, 'method-not-allowed')
@@ -226,7 +226,7 @@ async function serveTest(deps: RouteDeps, req: IncomingMessage, res: ServerRespo
   json(res, 200, { ok: true, activity, memory, summary })
 }
 
-/** `POST /cloud-memory/flush`. */
+/** `POST /dsh-brain/flush`. */
 async function serveFlush(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     fail(res, 405, 'method-not-allowed')
@@ -248,7 +248,7 @@ const TOKEN_LABELS = {
 } as const
 
 /**
- * `POST /cloud-memory/login` — sign in with the cloud account and exchange it
+ * `POST /dsh-brain/login` — sign in with the cloud account and exchange it
  * for the two scoped tokens.
  *
  * The password is used once, in memory, and never written anywhere: the flow is
@@ -362,11 +362,11 @@ function adminStatus(code: string): number {
 
 /**
  * The skill management surface, one prefix route:
- * `GET  /cloud-memory/skills`        the management page
- * `GET  /cloud-memory/skills/api`    inventory JSON (skills + trash)
- * `POST /cloud-memory/skills/toggle` { folder, enabled }
- * `POST /cloud-memory/skills/remove` { folder }
- * `POST /cloud-memory/skills/install` { url }
+ * `GET  /dsh-brain/skills`        the management page
+ * `GET  /dsh-brain/skills/api`    inventory JSON (skills + trash)
+ * `POST /dsh-brain/skills/toggle` { folder, enabled }
+ * `POST /dsh-brain/skills/remove` { folder }
+ * `POST /dsh-brain/skills/install` { url }
  */
 async function serveSkills(deps: RouteDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (deps.admin === undefined) {
@@ -444,6 +444,11 @@ async function serveSkills(deps: RouteDeps, req: IncomingMessage, res: ServerRes
 }
 
 /** Build the exact-route table registered with the host web server. */
+/** Pre-rename aliases (v0.5.0): the same handlers under the old `/cloud-memory` prefix. */
+export function createLegacyRoutes(deps: RouteDeps): CloudMemoryWebRoute[] {
+  return createRoutes(deps).map((route) => ({ ...route, path: route.path.replace('/dsh-brain', '/cloud-memory') }))
+}
+
 export function createRoutes(deps: RouteDeps): CloudMemoryWebRoute[] {
   return [
     {

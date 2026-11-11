@@ -1,6 +1,6 @@
 {
-  "name": "dsh-cloud-memory",
-  "version": "0.4.2",
+  "name": "dsh-brain",
+  "version": "0.5.0",
   "description": "Cloud memory for DSH: report one activity turn per conversation round and expose memory_search / memory_read / memory_add tools against a LongMemory cloud endpoint.",
   "type": "module",
   "license": "MIT",
@@ -71,12 +71,12 @@
   },
   "keywords": [
     "agent",
-    "cloud-memory",
+    "dsh-brain",
     "dsh",
     "dsh-plugin",
     "longmemory",
     "memory",
     "mnemon"
   ],
-  "author": "dsh-cloud-memory contributors"
+  "author": "dsh-brain contributors"
 }

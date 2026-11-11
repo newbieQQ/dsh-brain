@@ -31,7 +31,7 @@ export interface ReportRecord {
   error?: string
 }
 
-/** Counters + recent history exposed by `GET /cloud-memory/status`. */
+/** Counters + recent history exposed by `GET /dsh-brain/status`. */
 export interface ReporterSnapshot {
   attempted: number
   recorded: number
@@ -331,7 +331,7 @@ export class Reporter {
     }
     this.summaryFailed += 1
     this.lastSummaryError = describeError(result.error)
-    this.options.log(`cloud-memory: turn summary failed: ${this.lastSummaryError}`)
+    this.options.log(`dsh-brain: turn summary failed: ${this.lastSummaryError}`)
   }
 
   private push(record: ReportRecord): void {
@@ -381,7 +381,7 @@ export class Reporter {
       this.queue.push(payload)
       if (this.queue.length > 200) this.queue.shift()
     }
-    this.options.log(`cloud-memory: turn report failed: ${this.lastError}`)
+    this.options.log(`dsh-brain: turn report failed: ${this.lastError}`)
   }
 
   /** Retry queued reports; safe to call at any time. */
@@ -404,7 +404,7 @@ export class Reporter {
             // an unbounded queue of metadata forever.
             this.queue.shift()
             this.retries.delete(payload.turn_id)
-            this.options.log(`cloud-memory: dropping turn report after ${attempt} attempts: ${this.lastError}`)
+            this.options.log(`dsh-brain: dropping turn report after ${attempt} attempts: ${this.lastError}`)
             continue
           }
           this.retries.set(payload.turn_id, attempt)

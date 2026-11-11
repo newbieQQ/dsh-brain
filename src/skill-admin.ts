@@ -217,7 +217,7 @@ export class SkillAdmin {
     if (!/^(https:\/\/|file:\/\/)/.test(url) || /[\s"'`]/.test(url) || url.length > 512) {
       fail('invalid_url', '只接受 https:// 或 file:// 的 git 仓库地址。')
     }
-    const scratch = join(dshHome(), `.cloud-memory-clone-${process.pid}-${Date.now().toString(36)}`)
+    const scratch = join(dshHome(), `.dsh-brain-clone-${process.pid}-${Date.now().toString(36)}`)
     try {
       await new Promise<void>((resolvePromise, rejectPromise) => {
         execFile(

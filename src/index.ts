@@ -4,7 +4,7 @@
  * Responsibilities:
  * 1. report one activity record per finished conversation round,
  * 2. expose the memory tools to the agent,
- * 3. serve the configuration page under `/cloud-memory`.
+ * 3. serve the configuration page under `/dsh-brain` (legacy `/cloud-memory` routes stay as aliases).
  *
  * Everything registers through `ctx.effect(...)` so a plugin reload tears down
  * its routes, timer, listeners, and tools without leftovers.
@@ -12,21 +12,21 @@
 import { CloudClient } from './api.ts'
 import type { CloudMemoryContext, SessionEventLike, SessionLike } from './context-types.ts'
 import { Reporter } from './reporter.ts'
-import { createRoutes } from './routes.ts'
+import { createLegacyRoutes, createRoutes } from './routes.ts'
 import { join } from 'node:path'
 import { SettingsStore, dshHome } from './store.ts'
-import { SkillSync } from './skill-sync.ts'
+import { SkillSync, skillsStatePath } from './skill-sync.ts'
 import { SkillAdmin, skillsHoldingDir } from './skill-admin.ts'
 import { createMemoryTools, createSkillTools } from './tools.ts'
 
 /** Package name; also the client bundle id. */
-export const name = 'dsh-cloud-memory'
+export const name = 'dsh-brain'
 
 /** Services required before `apply` runs. */
 export const inject = ['webServer']
 
 /** Version reported by the status card. */
-const VERSION = '0.4.1'
+const VERSION = '0.5.0'
 
 /** How often the skill directory is reconciled with the cloud center. */
 const SKILL_SYNC_INTERVAL_MS = 15 * 60_000
@@ -36,7 +36,7 @@ const RETRY_INTERVAL_MS = 30_000
 
 /** Register the plugin with the host. */
 export function apply(ctx: CloudMemoryContext, config: unknown): void {
-  const logger = ctx.logger('cloud-memory')
+  const logger = ctx.logger('dsh-brain')
   const store = new SettingsStore(config)
   const settings = () => store.settings()
 
@@ -70,7 +70,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
   const skillAdmin = new SkillAdmin({
     skillsRoot: () => skillSync.skillsRoot(),
     holdingDir: () => skillsHoldingDir(),
-    syncStatePath: () => join(dshHome(), 'cloud-memory-skills.json'),
+    syncStatePath: () => skillsStatePath(),
     syncRunning: () => skillSync.stats().running,
     log: (message) => logger.info(message),
   })
@@ -79,7 +79,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
   if (!effective.enabled) {
     logger.info('disabled by settings')
   } else if (store.activityToken() === '') {
-    logger.warn(`reporting enabled but no activity token; configure one at ${store.path} or open /cloud-memory`)
+    logger.warn(`reporting enabled but no activity token; configure one at ${store.path} or open /dsh-brain`)
   } else {
     logger.info(`reporting to ${effective.baseUrl} as ${effective.clientId}`)
   }
@@ -102,7 +102,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
         logger.warn(`turn event handling failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }),
-    'dsh-cloud-memory: turn reporting',
+    'dsh-brain: turn reporting',
   )
 
   ctx.inject(['tools'], (toolsCtx) => {
@@ -114,7 +114,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
       settings: () => ({ enabled: settings().enabled, defaultK: settings().defaultK }),
     }
     for (const tool of [...createMemoryTools(toolDeps), ...createSkillTools(toolDeps)]) {
-      toolsCtx.effect(() => tools.register(tool), `dsh-cloud-memory: tool ${tool.name}`)
+      toolsCtx.effect(() => tools.register(tool), `dsh-brain: tool ${tool.name}`)
     }
   })
 
@@ -123,8 +123,9 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     logger.warn('webServer service unavailable; the configuration page stays disabled')
   } else {
     const routes = createRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin })
+    routes.push(...createLegacyRoutes({ version: VERSION, store, reporter, client: () => client, skills: () => skillSync.stats(), admin: skillAdmin }))
     for (const route of routes) {
-      ctx.effect(() => webServer.register(route), `dsh-cloud-memory: route ${route.path}`)
+      ctx.effect(() => webServer.register(route), `dsh-brain: route ${route.path}`)
     }
   }
 
@@ -138,7 +139,7 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     }, RETRY_INTERVAL_MS)
     timer.unref?.()
     return () => clearInterval(timer)
-  }, 'dsh-cloud-memory: retry timer')
+  }, 'dsh-brain: retry timer')
 
   ctx.effect(() => {
     const run = () => {
@@ -149,5 +150,5 @@ export function apply(ctx: CloudMemoryContext, config: unknown): void {
     const timer = setInterval(run, SKILL_SYNC_INTERVAL_MS)
     timer.unref?.()
     return () => { clearTimeout(first); clearInterval(timer) }
-  }, 'dsh-cloud-memory: skill sync timer')
+  }, 'dsh-brain: skill sync timer')
 }

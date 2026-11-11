@@ -64,11 +64,11 @@ function renderJson(_args: unknown, value: unknown): TextBlock[] {
 /** Assert the memory scope is usable, or throw a message the model can act on. */
 function requireMemoryToken(deps: MemoryToolDeps): string {
   if (!deps.settings().enabled) {
-    throw new Error('云端记忆插件当前已禁用（enabled=false）。请在 /cloud-memory 页面开启后再试。')
+    throw new Error('云端记忆插件当前已禁用（enabled=false）。请在 /dsh-brain 页面开启后再试。')
   }
   const token = deps.memoryToken()
   if (token === '') {
-    throw new Error('未配置记忆令牌。请在 /cloud-memory 页面填入 mem_… 或 cmt_… 记忆令牌（需要 memory:read / memory:write 权限）。')
+    throw new Error('未配置记忆令牌。请在 /dsh-brain 页面填入 mem_… 或 cmt_… 记忆令牌（需要 memory:read / memory:write 权限）。')
   }
   return token
 }

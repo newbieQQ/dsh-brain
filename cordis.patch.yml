@@ -1,11 +1,11 @@
-# cloud-memory bundle patch
+# dsh-brain bundle patch
 #
 # Local-only build: this package is never published, so the row below is the
 # only way the plugin reaches the desktop profile tree. The host Loader
 # resolves the row `name` as a package from the profile node_modules.
 - insert:
-    - id: cloud-memory
-      name: 'dsh-cloud-memory'
+    - id: dsh-brain
+      name: 'dsh-brain'
       config:
         enabled: true
         baseUrl: https://your-memory-host/api/longmemory

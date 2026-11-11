@@ -1,6 +1,6 @@
 /**
  * Settings model: the cordis row config supplies defaults, the user-editable
- * sidecar (`$DSH_HOME/cloud-memory.json`) overrides them, and secrets live ONLY
+ * sidecar (`$DSH_HOME/dsh-brain.json`) overrides them, and secrets live ONLY
  * in the sidecar. Nothing here ever reaches the conversation or a model context.
  */
 

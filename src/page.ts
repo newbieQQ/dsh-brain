@@ -3,11 +3,11 @@
  *
  * This profile runs with the native settings surface disabled
  * (`ui-settings` is turned off in `cordis.patch.yml`), so the plugin ships its
- * own HTML page at `/cloud-memory`. It is deliberately dependency-free: no
+ * own HTML page at `/dsh-brain`. It is deliberately dependency-free: no
  * bundler assets, no CDN, no fonts — one file the host web server can emit.
  *
  * The page renders tokens as masked values only; the plaintext never leaves
- * `$DSH_HOME/cloud-memory.json`.
+ * `$DSH_HOME/dsh-brain.json`.
  */
 
 /** Escape a value for safe interpolation into HTML text/attributes. */
@@ -29,7 +29,7 @@ export function renderConfigPage(options: { version: string; settingsPath: strin
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>云端记忆 · DSH 插件</title>
+<title>云端记忆 · dsh-brain</title>
 <style>
 :root { color-scheme: light dark; }
 * { box-sizing: border-box; }
@@ -105,9 +105,9 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
 </head>
 <body>
 <div class="wrap">
-  <h1>云端记忆 · DSH 插件</h1>
+  <h1>云端记忆 · dsh-brain</h1>
   <p class="sub">v${escapeHtml(options.version)} · 每轮结束上报活动计数 · 提供 memory_search / memory_read / memory_add 工具</p>
-  <p class="sub"><a href="/cloud-memory/skills">技能管理（列表 · 启停 · 安装）→</a></p>
+  <p class="sub"><a href="/dsh-brain/skills">技能管理（列表 · 启停 · 安装）→</a></p>
 
   <section class="card">
     <h2>当前状态</h2>
@@ -322,7 +322,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
   }
 
   function load() {
-    return fetch('/cloud-memory/status', { headers: { accept: 'application/json' } })
+    return fetch('/dsh-brain/status', { headers: { accept: 'application/json' } })
       .then(function (res) { return res.json(); })
       .then(function (body) {
         if (!body || body.ok !== true) throw new Error((body && body.error) || 'status failed');
@@ -347,7 +347,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
     if (activity !== '') patch.activityToken = activity;
     if (memory !== '') patch.memoryToken = memory;
     if (summary !== '') patch.summaryToken = summary;
-    fetch('/cloud-memory/config', {
+    fetch('/dsh-brain/config', {
       method: 'PUT',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(patch)
@@ -364,7 +364,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
   function test() {
     var node = el('testResult');
     node.textContent = '测试中…';
-    fetch('/cloud-memory/test', { method: 'POST', headers: { accept: 'application/json' } })
+    fetch('/dsh-brain/test', { method: 'POST', headers: { accept: 'application/json' } })
       .then(function (res) { return res.json(); })
       .then(function (body) {
         if (!body || body.ok !== true) { node.textContent = '测试失败：' + ((body && body.error) || 'unknown'); return; }
@@ -377,7 +377,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
   }
 
   function flush() {
-    fetch('/cloud-memory/flush', { method: 'POST', headers: { accept: 'application/json' } })
+    fetch('/dsh-brain/flush', { method: 'POST', headers: { accept: 'application/json' } })
       .then(function (res) { return res.json(); })
       .then(function (body) {
         if (!body || body.ok !== true) { toast('重试失败：' + ((body && body.error) || 'unknown')); return; }
@@ -388,7 +388,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
   }
 
   function clearTokens() {
-    fetch('/cloud-memory/config', {
+    fetch('/dsh-brain/config', {
       method: 'PUT',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({ clearActivityToken: true, clearMemoryToken: true })
@@ -403,7 +403,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
     var username = el('username').value.trim();
     var password = el('password').value;
     if (username === '' || password === '') { toast('请填写用户名和密码'); return; }
-    fetch('/cloud-memory/login', {
+    fetch('/dsh-brain/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({ username: username, password: password })

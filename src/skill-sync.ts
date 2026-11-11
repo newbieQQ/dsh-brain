@@ -34,7 +34,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import { dirname, join, resolve } from 'node:path'
 import type { CloudClient, SkillBundle, SkillSummary, SkillUploadFile } from './api.ts'
 import { describeError } from './api.ts'
-import { dshHome } from './store.ts'
+import { migrateLegacyFile, dshHome } from './store.ts'
 
 /** Cloud skill names: lowercase kebab, at most 64 characters. */
 export const CLOUD_SKILL_NAME = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -125,7 +125,14 @@ interface UploadRecord {
   syncedAt: string
 }
 
-/** Sidecar state: `$DSH_HOME/cloud-memory-skills.json`. */
+/** Sidecar state: `$DSH_HOME/dsh-brain-skills.json` (legacy `cloud-memory-skills.json` migrates on first use). */
+
+/** Absolute sidecar path, carrying the pre-rename file over on first use. */
+export function skillsStatePath(): string {
+  const target = join(dshHome(), 'dsh-brain-skills.json')
+  migrateLegacyFile(target, join(dshHome(), 'cloud-memory-skills.json'))
+  return target
+}
 interface SyncState {
   version: 1
   uploaded: Record<string, UploadRecord>
@@ -191,7 +198,7 @@ export class SkillSync {
   }
 
   private statePath(): string {
-    return join(dshHome(), 'cloud-memory-skills.json')
+    return skillsStatePath()
   }
 
   private async loadState(): Promise<SyncState> {

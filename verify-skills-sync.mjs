@@ -177,7 +177,7 @@ check('unsupported skill never reaches the center', !center.has('bad-layout'))
 rmSync(skillDir('local-one'), { recursive: true, force: true })
 stats = await engine.syncOnce()
 check('local deletion keeps the cloud copy', center.has('local-one') && !requestLog.some((line) => line.startsWith('DELETE')))
-const sidecar = JSON.parse(readFileSync(join(process.env.DSH_HOME, 'cloud-memory-skills.json'), 'utf8'))
+const sidecar = JSON.parse(readFileSync(join(process.env.DSH_HOME, 'dsh-brain-skills.json'), 'utf8'))
 check('sidecar forgets the deleted local skill', !('local-one' in (sidecar.uploaded ?? {})))
 
 server.close()

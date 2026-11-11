@@ -1,8 +1,8 @@
 /**
- * The local skill management page (`GET /cloud-memory/skills`).
+ * The local skill management page (`GET /dsh-brain/skills`).
  *
  * A thin shell: the browser fetches the JSON inventory from
- * `/cloud-memory/skills/api` and renders it; every action is a small
+ * `/dsh-brain/skills/api` and renders it; every action is a small
  * JSON POST back to the same prefix. All skill data is inserted with
  * textContent, never as raw HTML.
  */
@@ -12,7 +12,7 @@ export function renderSkillsPage(options: { version: string }): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>技能管理 · 云端记忆插件</title>
+<title>技能管理 · dsh-brain</title>
 <style>
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f6f7f9; color: #1c2333; }
   .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 48px; }
@@ -43,7 +43,7 @@ export function renderSkillsPage(options: { version: string }): string {
 <body>
 <div class="wrap">
   <h1>技能管理</h1>
-  <p class="sub">v${options.version} · 本机技能的列表、启停、安装；删除是真删、不可恢复（云端副本不受影响）。云端同步仍在后台自动进行。<a href="/cloud-memory">← 返回云端记忆设置</a></p>
+  <p class="sub">v${options.version} · 本机技能的列表、启停、安装；删除是真删、不可恢复（云端副本不受影响）。云端同步仍在后台自动进行。<a href="/dsh-brain">← 返回云端记忆设置</a></p>
 
   <section class="card">
     <h2>从 git 仓库安装</h2>
@@ -76,7 +76,7 @@ export function renderSkillsPage(options: { version: string }): string {
     return btn;
   }
   async function post(path, body) {
-    const response = await fetch('/cloud-memory/skills' + path, {
+    const response = await fetch('/dsh-brain/skills' + path, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
@@ -97,7 +97,7 @@ export function renderSkillsPage(options: { version: string }): string {
     }
   }
   async function load() {
-    const response = await fetch('/cloud-memory/skills/api');
+    const response = await fetch('/dsh-brain/skills/api');
     const data = await response.json();
     const skillsBox = $('skills');
     skillsBox.textContent = '';

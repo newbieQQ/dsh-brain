@@ -39,7 +39,7 @@ export const descriptor: MemoryProviderDescriptor = {
       input: 'url',
       required: false,
       placeholder: 'https://mem.example.com/api/longmemory',
-      help: 'LongMemory base URL. Leave empty to reuse the dsh-cloud-memory settings (cloud-memory.json).',
+      help: 'LongMemory base URL. Leave empty to reuse the dsh-brain settings (dsh-brain.json).',
       normalize: 'trim-trailing-slash',
     },
     {
@@ -48,7 +48,7 @@ export const descriptor: MemoryProviderDescriptor = {
       scope: 'service',
       input: 'secret',
       required: false,
-      help: 'Scoped memory token (memory:write). Leave empty to reuse the token already configured for dsh-cloud-memory.',
+      help: 'Scoped memory token (memory:write). Leave empty to reuse the token already configured for dsh-brain.',
     },
     {
       key: 'projectId',
