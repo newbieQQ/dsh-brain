@@ -26,7 +26,7 @@ export const name = 'dsh-brain'
 export const inject = ['webServer']
 
 /** Version reported by the status card. */
-const VERSION = '0.5.0'
+const VERSION = '0.5.1'
 
 /** How often the skill directory is reconciled with the cloud center. */
 const SKILL_SYNC_INTERVAL_MS = 15 * 60_000

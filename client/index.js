@@ -1,11 +1,11 @@
-// dsh-cloud-memory client bundle.
+// dsh-brain client bundle.
 //
 // Hand-written on purpose: the host loads this file through `require` shims it
 // provides itself (react / react/jsx-runtime), so no bundler is involved. The
 // module wrapper below is the contract the web loader expects — `id` has to
 // match the package name, otherwise the module graph registers a second copy.
 window.__ModuleLoader__.load({
-  id: 'dsh-cloud-memory',
+  id: 'dsh-brain',
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
@@ -15,11 +15,11 @@ window.__ModuleLoader__.load({
     var React = require('react')
     var h = React.createElement
 
-    var STATUS_URL = '/cloud-memory/status'
-    var CONFIG_URL = '/cloud-memory/config'
-    var LOGIN_URL = '/cloud-memory/login'
-    var TEST_URL = '/cloud-memory/test'
-    var FLUSH_URL = '/cloud-memory/flush'
+    var STATUS_URL = '/dsh-brain/status'
+    var CONFIG_URL = '/dsh-brain/config'
+    var LOGIN_URL = '/dsh-brain/login'
+    var TEST_URL = '/dsh-brain/test'
+    var FLUSH_URL = '/dsh-brain/flush'
     var POLL_MS = 10000
 
     var inject = ['slots']
@@ -556,12 +556,12 @@ window.__ModuleLoader__.load({
             h('input', {
               type: 'checkbox',
               checked: draft.enabled,
-              id: 'dsh-cloud-memory-enabled',
+              id: 'dsh-brain-enabled',
               onChange: function (event) {
                 patchDraft({ enabled: event.target.checked })
               },
             }),
-            h('label', { htmlFor: 'dsh-cloud-memory-enabled', style: styles.label }, '启用每轮活动上报（只上报时间戳、会话 id 与状态，不上传对话内容）'),
+            h('label', { htmlFor: 'dsh-brain-enabled', style: styles.label }, '启用每轮活动上报（只上报时间戳、会话 id 与状态，不上传对话内容）'),
           ),
         ),
 
@@ -783,7 +783,7 @@ window.__ModuleLoader__.load({
             : h('p', { style: styles.hint }, '最近一次错误：' + String(reporter.lastError)),
         ),
 
-        h('p', { style: styles.hint }, '配置保存在 ' + String(snapshot.settingsPath === undefined ? '本机配置文件' : snapshot.settingsPath) + '，页面地址 /cloud-memory 仍然可用。'),
+        h('p', { style: styles.hint }, '配置保存在 ' + String(snapshot.settingsPath === undefined ? '本机配置文件' : snapshot.settingsPath) + '，页面地址 /dsh-brain。'),
       )
     }
 
@@ -807,7 +807,7 @@ window.__ModuleLoader__.load({
           'div',
           { style: Object.assign({}, styles.root) },
           h('div', { style: Object.assign({}, styles.banner, styles.bad) }, '云端记忆设置卡渲染失败：' + messageOf(this.state.failure)),
-          h('p', { style: styles.hint }, '插件本身仍在运行，可改用 /cloud-memory 页面配置。'),
+          h('p', { style: styles.hint }, '插件本身仍在运行，可改用 /dsh-brain 页面配置。'),
         )
       }
       return this.props.children
@@ -824,23 +824,23 @@ window.__ModuleLoader__.load({
             return ctx.slots.register(options, card)
           })
         } catch (failure) {
-          if (typeof console !== 'undefined') console.warn('[dsh-cloud-memory] slot ' + seat + ' unavailable: ' + messageOf(failure))
+          if (typeof console !== 'undefined') console.warn('[dsh-brain] slot ' + seat + ' unavailable: ' + messageOf(failure))
         }
       }
 
       register('settings.section', {
         name: 'settings.section',
-        id: 'cloud-memory',
+        id: 'dsh-brain',
         order: 100,
         label: function () {
           return '云端记忆'
         },
       })
 
-      register('plugins.bundle.config', { name: 'plugins.bundle.config', key: 'dsh-cloud-memory' })
+      register('plugins.bundle.config', { name: 'plugins.bundle.config', key: 'dsh-brain' })
     }
 
-    module.exports = { apply: apply, inject: inject, name: 'dsh-cloud-memory' }
+    module.exports = { apply: apply, inject: inject, name: 'dsh-brain' }
     return module.exports
   },
 })
