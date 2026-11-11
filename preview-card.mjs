@@ -19,7 +19,7 @@ const store = new SettingsStore({})
 const admin = new SkillAdmin({
   skillsRoot: () => join(store.path, '..', 'skills'),
   holdingDir: () => skillsHoldingDir(),
-  syncStatePath: () => join(store.path, '..', 'cloud-memory-skills.json'),
+  syncStatePath: () => join(store.path, '..', 'dsh-brain-skills.json'),
   syncRunning: () => false,
   log: () => {},
 })
@@ -46,7 +46,7 @@ const statusBody = {
     memory: { configured: true, masked: 'cmt_3b81cc…22a9' },
     summary: { configured: true, masked: 'cmt_71ad02…9f10' },
   },
-  settingsPath: 'C:/Users/qyh15/.dsh/cloud-memory.json',
+  settingsPath: 'C:/Users/qyh15/.dsh/dsh-brain.json',
   reporter: { attempted: 12, recorded: 11, duplicate: 1, failed: 0, skipped: 0, queued: 0, recent: [] },
   lastCheck: {
     at: Date.now(),
@@ -215,9 +215,9 @@ function requireShim(id) {
 async function fakeFetch(url) {
   const path = String(url).split('?')[0]
   let body = { ok: false }
-  if (path === '/cloud-memory/status') body = statusBody
-  else if (path === '/cloud-memory/skills/sources') body = { ok: true, ...overview }
-  else if (path.startsWith('/cloud-memory/skills/api')) body = { ok: true, skills: overview.sources[0]?.groups.flatMap((group) => group.skills) ?? [], plans: [] }
+  if (path === '/dsh-brain/status') body = statusBody
+  else if (path === '/dsh-brain/skills/sources') body = { ok: true, ...overview }
+  else if (path.startsWith('/dsh-brain/skills/api')) body = { ok: true, skills: overview.sources[0]?.groups.flatMap((group) => group.skills) ?? [], plans: [] }
   return { status: body.ok === false ? 404 : 200, json: async () => body, text: async () => JSON.stringify(body) }
 }
 
