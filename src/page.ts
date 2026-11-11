@@ -120,7 +120,7 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
     <div class="grid">
       <div>
         <label for="baseUrl">服务基址</label>
-        <input id="baseUrl" type="text" spellcheck="false" placeholder="https://mem.qyhhh.top/api/longmemory" />
+        <input id="baseUrl" type="text" spellcheck="false" placeholder="https://your-memory-host/api/longmemory" />
         <div class="hint">不带结尾斜杠，路径为 /api/longmemory。</div>
       </div>
       <div>

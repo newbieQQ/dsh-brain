@@ -7,7 +7,7 @@
 /** Defaults written into cordis.patch.yml; also the fallback for missing keys. */
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
-  baseUrl: 'https://mem.qyhhh.top/api/longmemory',
+  baseUrl: 'https://your-memory-host/api/longmemory',
   clientId: 'dsh-desktop',
   requestTimeoutMs: 5000,
   defaultK: 10,
