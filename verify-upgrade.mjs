@@ -74,7 +74,7 @@ for (const name of readdirSync(libDir)) {
 }
 check('no personal domain remains in shipped lib/', leaked.length === 0, leaked.join(','))
 const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'))
-check('package version is the delivery version', pkg.version === '0.8.0', pkg.version)
+check('package version is the delivery version', pkg.version === '0.9.0', pkg.version)
 
 const passed = results.filter((r) => r.ok).length
 console.log(`\n${passed}/${results.length} passed`)

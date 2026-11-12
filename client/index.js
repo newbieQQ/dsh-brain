@@ -264,9 +264,9 @@ window.__ModuleLoader__.load({
         whiteSpace: 'nowrap',
       },
       tabActive: {
-        border: '1px solid rgba(99,102,241,0.45)',
-        background: 'rgba(99,102,241,0.15)',
-        boxShadow: '0 2px 8px rgba(23,25,60,0.14)',
+        border: '1px solid rgba(127,127,127,0.30)',
+        background: 'rgba(127,127,127,0.14)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
         fontWeight: 600,
       },
       section: {
@@ -274,8 +274,8 @@ window.__ModuleLoader__.load({
         flexDirection: 'column',
         gap: '12px',
         border: '1px solid rgba(127,127,127,0.22)',
-        borderRadius: '14px',
-        padding: '16px 18px',
+        borderRadius: '16px',
+        padding: '18px 20px',
         minWidth: 0,
       },
       sectionHead: {
@@ -351,8 +351,8 @@ window.__ModuleLoader__.load({
         padding: '7px 18px',
         borderRadius: '10px',
         border: '1px solid transparent',
-        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        boxShadow: '0 4px 12px -4px rgba(99,102,241,0.55)',
+        background: '#3f3f46',
+        boxShadow: '0 2px 6px -2px rgba(0,0,0,0.35)',
         color: '#ffffff',
         cursor: 'pointer',
         fontWeight: 600,
@@ -422,6 +422,48 @@ window.__ModuleLoader__.load({
       bad: { borderColor: 'rgba(220,38,38,0.55)', background: 'rgba(220,38,38,0.12)' },
       warn: { borderColor: 'rgba(217,119,6,0.55)', background: 'rgba(217,119,6,0.12)' },
       muted: {},
+      iconBtn: {
+        width: '28px',
+        height: '28px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '13px',
+        lineHeight: 1,
+        padding: 0,
+        borderRadius: '8px',
+        border: '1px solid rgba(127,127,127,0.25)',
+        background: 'rgba(127,127,127,0.05)',
+        color: 'inherit',
+        cursor: 'pointer',
+        flex: '0 0 auto',
+      },
+      iconBtnDanger: {
+        border: '1px solid rgba(220,38,38,0.40)',
+        background: 'rgba(220,38,38,0.08)',
+      },
+      statsBar: {
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+      },
+      stat: {
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        gap: '6px',
+        paddingRight: '18px',
+        marginRight: '18px',
+        borderRight: '1px solid rgba(127,127,127,0.20)',
+      },
+      statLast: {
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        gap: '6px',
+      },
+      statNum: {
+        fontSize: '17px',
+        fontWeight: 700,
+      },
       banner: {
         padding: '10px 13px',
         borderRadius: '11px',
@@ -484,7 +526,7 @@ window.__ModuleLoader__.load({
         flexDirection: 'column',
         gap: '6px',
         paddingLeft: '10px',
-        borderLeft: '2px solid rgba(99,102,241,0.16)',
+        borderLeft: '2px solid rgba(127,127,127,0.18)',
         minWidth: 0,
       },
       sourceCard: {
@@ -492,8 +534,8 @@ window.__ModuleLoader__.load({
         flexDirection: 'column',
         gap: '6px',
         border: '1px solid rgba(127,127,127,0.17)',
-        borderRadius: '13px',
-        padding: '10px 12px',
+        borderRadius: '14px',
+        padding: '12px 14px',
         minWidth: 0,
       },
       groupRow: {
@@ -508,14 +550,20 @@ window.__ModuleLoader__.load({
       },
       skillRow: {
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'space-between',
         gap: '8px',
-        padding: '6px 8px',
+        padding: '5px 8px',
         borderRadius: '8px',
         border: '1px solid transparent',
         minWidth: 0,
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
+      },
+      clamp1: {
+        display: '-webkit-box',
+        WebkitLineClamp: '1',
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
       },
       clamp2: {
         display: '-webkit-box',
@@ -532,8 +580,8 @@ window.__ModuleLoader__.load({
         justifyContent: 'center',
         fontSize: '11px',
         fontWeight: 700,
-        border: '1px solid rgba(99,102,241,0.4)',
-        background: 'linear-gradient(135deg, rgba(99,102,241,0.28), rgba(139,92,246,0.28))',
+        border: '1px solid rgba(127,127,127,0.22)',
+        background: 'rgba(127,127,127,0.10)',
         flex: '0 0 auto',
       },
       folderGlyph: {
@@ -600,6 +648,22 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function IconBtn(props) {
+      var style = Object.assign({}, styles.iconBtn, props.danger === true ? styles.iconBtnDanger : null, props.disabled === true ? { opacity: 0.45, cursor: 'not-allowed' } : null)
+      return h(
+        'button',
+        {
+          type: 'button',
+          style: style,
+          disabled: props.disabled === true,
+          onClick: props.disabled === true ? undefined : props.onClick,
+          'aria-label': props.ariaLabel,
+          title: props.ariaLabel,
+        },
+        props.glyph,
+      )
+    }
+
     function Switch(props) {      return h(
         'div',
         { style: styles.tabs, role: 'tablist', 'aria-label': props.ariaLabel },
@@ -643,8 +707,8 @@ window.__ModuleLoader__.load({
             flex: '0 0 auto',
             padding: '2px',
             borderRadius: '999px',
-            border: '1px solid ' + (on ? 'rgba(99,102,241,0.6)' : 'rgba(127,127,127,0.45)'),
-            background: on ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(127,127,127,0.28)',
+            border: '1px solid ' + (on ? 'rgba(0,0,0,0.25)' : 'rgba(127,127,127,0.45)'),
+            background: on ? '#3f3f46' : 'rgba(127,127,127,0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: on ? 'flex-end' : 'flex-start',
@@ -1190,142 +1254,89 @@ window.__ModuleLoader__.load({
       )
     }
 
-    // ---- v1.1: cross-software / workspace inventory ----------------------
-    function ClientScopeSection() {
-      var tuple = React.useState({ overview: null, software: 'dsh', scope: 'global', workspaceId: '', inventory: null, busy: '', notice: null, addPath: '', addName: '', brain: null })
+    // ---- import skills from other tools -------------------------------
+    function ImportSection() {
+      var tuple = React.useState({ status: 'loading', sources: [], open: {}, busy: '', notice: null, imported: {} })
       var s = tuple[0]
       var set = tuple[1]
       function patch(next) { set(function (prev) { return Object.assign({}, prev, next) }) }
-      React.useEffect(function () {
-        loadOverview()
-        request(API.migrate + '/brain', { method: 'GET' }).then(function (res) {
-          if (res.body !== null && res.body !== undefined && res.body.ok === true) patch({ brain: res.body })
-        })
-      }, [])
-      function loadOverview() {
-        request(API.clients + '/overview', { method: 'GET' }).then(function (res) {
+      React.useEffect(function () { load() }, [])
+      function load() {
+        patch({ status: 'loading', notice: null })
+        request(API.skills + '/sources', { method: 'GET' }).then(function (res) {
           if (res.body !== null && res.body !== undefined && res.body.ok === true) {
-            patch({ overview: res.body })
-            loadInventory(s.software, s.scope, s.workspaceId)
-          } else patch({ notice: { tone: 'bad', text: bodyError(res, '读取软件清单失败') } })
-        }, function (error) { patch({ notice: { tone: 'bad', text: messageOf(error) } }) })
+            patch({ status: 'ready', sources: Array.isArray(res.body.sources) ? res.body.sources : [] })
+          } else patch({ status: 'error', notice: { tone: 'bad', text: bodyError(res, '读取来源失败') } })
+        }, function (error) { patch({ status: 'error', notice: { tone: 'bad', text: messageOf(error) } }) })
       }
-      function loadInventory(software, scope, workspaceId) {
-        var url = API.clients + '/inventory?software=' + encodeURIComponent(software) + '&scope=' + encodeURIComponent(scope) + (workspaceId === '' ? '' : '&workspaceId=' + encodeURIComponent(workspaceId))
-        request(url, { method: 'GET' }).then(function (res) {
-          if (res.body !== null && res.body !== undefined && res.body.ok === true) patch({ inventory: res.body })
-          else patch({ inventory: { items: [], note: bodyError(res, '读取技能清单失败') } })
-        })
-      }
-      function chooseSoftware(id) {
-        patch({ software: id, scope: 'global', workspaceId: '', inventory: null })
-        loadInventory(id, 'global', '')
-      }
-      function chooseScope(scope) {
-        patch({ scope: scope, workspaceId: '', inventory: null })
-        if (scope === 'global') loadInventory(s.software, 'global', '')
-      }
-      function chooseWorkspace(id) {
-        patch({ workspaceId: id })
-        loadInventory(s.software, 'workspace', id)
-      }
-      function addWorkspace() {
-        if (String(s.addPath).trim() === '') { patch({ notice: { tone: 'warn', text: '请填写工作区目录。' } }); return }
-        patch({ busy: 'add' })
-        postJson(API.clients + '/workspaces/add', { software: s.software, path: String(s.addPath).trim(), name: String(s.addName).trim() }).then(function (res) {
-          if (res.body !== null && res.body !== undefined && res.body.ok === true) {
-            patch({ busy: '', addPath: '', addName: '', notice: { tone: 'ok', text: '已登记工作区：' + String(res.body.workspace.name) } })
-            loadOverview()
-          } else patch({ busy: '', notice: { tone: 'bad', text: '登记失败：' + bodyError(res, '') } })
-        }, function (error) { patch({ busy: '', notice: { tone: 'bad', text: messageOf(error) } }) })
-      }
-      function migrateBrain() {
-        patch({ busy: 'migrate' })
-        postJson(API.migrate + '/brain', {}).then(function (res) {
-          if (res.body !== null && res.body !== undefined && res.body.ok === true) {
-            var names = (res.body.copied || []).join('、')
-            patch({ busy: '', brain: { migrationNeeded: false, packageRename: 'done' }, notice: { tone: 'ok', text: names === '' ? '没有需要迁移的旧文件（或目标已存在）。' : '已复制：' + names + '（旧文件保留）' } })
-          } else patch({ busy: '', notice: { tone: 'bad', text: bodyError(res, '迁移失败') } })
-        }, function (error) { patch({ busy: '', notice: { tone: 'bad', text: messageOf(error) } }) })
-      }
-      var overview = s.overview
-      var adapters = overview === null ? [] : (overview.adapters || [])
-      var workspaces = overview === null ? {} : (overview.workspaces || {})
-      var list = workspaces[s.software] || []
-      var inventory = s.inventory
-      var items = inventory === null || !Array.isArray(inventory.items) ? [] : inventory.items
-      var selected = null
-      for (var i = 0; i < adapters.length; i += 1) if (adapters[i].id === s.software) selected = adapters[i]
-      var softwareRow = adapters.map(function (adapter) {
-        return h(Btn, {
-          key: adapter.id,
-          variant: adapter.id === s.software ? 'primary' : 'small',
-          label: adapter.label + (adapter.installed ? '' : '（未安装）'),
-          onClick: function () { chooseSoftware(adapter.id) },
-        })
-      })
-      var scopeRow = selected !== null && selected.workspaceSupported
-        ? h(Switch, {
-            ariaLabel: '范围',
-            value: s.scope,
-            onChange: chooseScope,
-            options: [{ value: 'global', label: '通用' }, { value: 'workspace', label: '工作区' }],
+      function dshFolders() {
+        var found = {}
+        s.sources.forEach(function (source) {
+          if (!source.writable) return
+          var groups = source.groups || []
+          groups.forEach(function (group) {
+            var skills = group.skills || []
+            skills.forEach(function (skill) { found[skill.folder] = true })
           })
-        : h('span', { style: styles.hint }, '该软件没有可识别的工作区专属技能目录，仅展示通用。')
-      var workspaceSelect = s.scope === 'workspace'
-        ? itemSelect(list.map(function (w) { return { key: w.id, name: w.name, transport: w.path } }), s.workspaceId, chooseWorkspace)
-        : null
-      function wsToggle(item) {
-        patch({ busy: item.folder })
-        postJson(API.clients + '/workspace/toggle', { software: s.software, workspaceId: s.workspaceId, folder: item.folder, enabled: item.enabled !== true }).then(function (res) {
+        })
+        return found
+      }
+      function toggleSource(sourceId) {
+        var next = Object.assign({}, s.open)
+        next[sourceId] = next[sourceId] !== true
+        patch({ open: next })
+      }
+      function doImport(source, skill) {
+        patch({ busy: source.id + ':' + skill.folder })
+        postJson(API.skills + '/import', { sourceId: source.id, folder: skill.folder }).then(function (res) {
           if (res.body !== null && res.body !== undefined && res.body.ok === true) {
-            patch({ busy: '', notice: { tone: 'ok', text: item.folder + '：' + String(res.body.note || (item.enabled === true ? '已停用' : '已启用')) } })
-            loadInventory(s.software, 'workspace', s.workspaceId)
-          } else patch({ busy: '', notice: { tone: 'bad', text: '启停失败：' + bodyError(res, '') } })
+            var imported = Object.assign({}, s.imported)
+            imported[skill.folder] = true
+            patch({ busy: '', imported: imported, notice: { tone: 'ok', text: '已导入「' + skill.name + '」到 DSH，技能文件夹里就能看到。' } })
+          } else patch({ busy: '', notice: { tone: 'bad', text: bodyError(res, '导入失败') } })
         }, function (error) { patch({ busy: '', notice: { tone: 'bad', text: messageOf(error) } }) })
       }
-      function wsRemove(item) {
-        if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('删除工作区技能「' + item.name + '」？此操作不可恢复。')) return
-        patch({ busy: item.folder })
-        postJson(API.clients + '/workspace/remove', { software: s.software, workspaceId: s.workspaceId, folder: item.folder, confirmed: true }).then(function (res) {
-          if (res.body !== null && res.body !== undefined && res.body.ok === true) {
-            patch({ busy: '', notice: { tone: 'ok', text: '已删除 ' + item.folder } })
-            loadInventory(s.software, 'workspace', s.workspaceId)
-          } else patch({ busy: '', notice: { tone: 'bad', text: '删除失败：' + bodyError(res, '') } })
-        }, function (error) { patch({ busy: '', notice: { tone: 'bad', text: messageOf(error) } }) })
-      }
-      var itemRows = items.map(function (item) {
-        return h('div', { key: item.path, style: styles.row },
+      var mine = dshFolders()
+      var others = s.sources.filter(function (source) { return !source.writable })
+      var rows = others.map(function (source) {
+        var skills = []
+        var groups = source.groups || []
+        groups.forEach(function (group) {
+          var list = group.skills || []
+          list.forEach(function (skill) { skills.push(skill) })
+        })
+        var open = s.open[source.id] === true
+        return h('div', { key: source.id, style: styles.row },
           h('div', { style: styles.rowHead },
-            h('span', { style: styles.rowTitle }, item.name + '（' + item.folder + '）'),
-            h('span', { style: styles.hint }, (item.writable ? (item.enabled === false ? '已停用' : '启用中') : '只读') + (item.description === '' ? '' : ' · ' + item.description)),
+            h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0 } },
+              h('span', { style: styles.sourceGlyph }, source.label.slice(0, 1)),
+              h('span', { style: styles.sourceTitle }, source.label),
+              h('span', { style: styles.hint }, source.exists ? skills.length + ' 个技能' : '未安装'),
+            ),
+            source.exists ? h(Btn, { label: open ? '收起' : '展开', variant: 'small', onClick: function () { toggleSource(source.id) } }) : null,
           ),
-          item.writable
-            ? h('div', { style: styles.actions },
-                h(Btn, { label: item.enabled === false ? '启用' : '停用', variant: 'small', disabled: s.busy !== '', onClick: function () { wsToggle(item) } }),
-                h(Btn, { label: '卸载', variant: 'small', disabled: s.busy !== '', onClick: function () { wsRemove(item) } }),
-              )
-            : null,
+          h('span', { style: styles.mono }, source.root),
+          !source.exists || !open ? null : skills.length === 0
+            ? h('p', { style: styles.hint }, '这个来源里还没有技能。')
+            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px' } }, skills.map(function (skill) {
+                var has = mine[skill.folder] === true || s.imported[skill.folder] === true
+                return h('div', { key: skill.folder, style: styles.skillRow },
+                  h('span', { style: { minWidth: 0 } },
+                    h('span', { style: styles.rowTitle }, skill.name),
+                    skill.description ? h('span', { style: Object.assign({}, styles.hint, { display: 'block' }) }, skill.description) : null,
+                  ),
+                  has
+                    ? h(Pill, { label: 'DSH', value: '已导入', tone: 'muted' })
+                    : h(Btn, { label: s.busy === source.id + ':' + skill.folder ? '导入中…' : '导入', variant: 'small', disabled: s.busy !== '', onClick: function () { doImport(source, skill) } }),
+                )
+              })),
         )
       })
-      return h(Section, { title: '软件与范围', hint: '按软件 → 通用/工作区查看技能清单。只有 DSH 可写，其他软件只读且绝不写通用配置冒充；工作区来自 DSH 登记与你手动添加的目录。', aside: h(Btn, { label: '刷新', variant: 'small', onClick: loadOverview }) },
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
-          h('div', { style: styles.actions }, softwareRow),
-          h('div', { style: styles.actions }, scopeRow),
-          workspaceSelect,
-          s.notice === null ? null : h(Banner, { tone: s.notice.tone }, s.notice.text),
-          inventory === null ? h('p', { style: styles.hint }, '正在读取清单…') : h('p', { style: styles.hint }, String(inventory.note || '')),
-          items.length === 0 ? h('p', { style: styles.hint }, '该范围没有技能。') : h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } }, itemRows),
-          h('div', { style: styles.grid },
-            h(Field, { label: '登记工作区目录（给当前软件）', value: s.addPath, placeholder: 'C:\\\\path\\\\to\\\\project', onChange: function (v) { patch({ addPath: v }) } }),
-            h(Field, { label: '显示名（可选）', value: s.addName, onChange: function (v) { patch({ addName: v }) } }),
-          ),
-          h('div', { style: styles.actions }, h(Btn, { label: s.busy === 'add' ? '登记中…' : '登记工作区', disabled: s.busy !== '', onClick: addWorkspace })),
-          s.brain === null ? null : h('div', { style: styles.nested },
-            h('p', { style: styles.hint }, 'DSH Brain 迁移：产品名 ' + String(s.brain.product || 'DSH Brain') + ' → 包名 ' + String(s.brain.targetPackage || 'dsh-brain') + '；数据迁移' + (s.brain.migrationNeeded === true ? '待执行' : '已就绪/已复制') + '；实际改名需部署重启。'),
-            s.brain.migrationNeeded === true ? h('div', { style: styles.actions }, h(Btn, { label: s.busy === 'migrate' ? '迁移中…' : '复制数据到 dsh-brain', disabled: s.busy !== '', onClick: migrateBrain })) : null,
-          ),
-        ),
+      return h(Section, { title: '从其他软件导入', hint: '把其他软件技能目录里的技能复制一份到 DSH，原目录不动；同名技能不能重复导入。', aside: h(Btn, { label: '刷新', variant: 'small', onClick: load }) },
+        s.status === 'loading' ? h('p', { style: styles.hint }, '正在读取来源…')
+          : others.length === 0 ? h('p', { style: styles.hint }, '没有检测到其他软件的技能目录。')
+          : h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } }, rows),
+        s.notice === null ? null : h(Banner, { tone: s.notice.tone }, s.notice.text),
       )
     }
 
@@ -2540,26 +2551,39 @@ window.__ModuleLoader__.load({
         }
 
         var renderSkillRow = function (source, skill) {
+          var writable = source.writable === true
           return h(
             'div',
             { key: String(source.id) + ':' + String(skill.folder), style: styles.skillRow },
             h(
               'div',
-              { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: '1 1 220px' } },
-              h('span', { style: styles.rowTitle }, String(skill.name)),
-              skill.description === '' ? null : h('span', { style: Object.assign({}, styles.hint, styles.clamp2) }, String(skill.description)),
-              h(
-                'span',
-                { style: styles.hint },
-                String(skill.files) + ' 个文件 · ' + formatBytes(skill.bytes) + (skill.origin === undefined ? '' : ' · ' + String(ORIGIN_LABELS[skill.origin] === undefined ? skill.origin : ORIGIN_LABELS[skill.origin])) + (skill.enabledEditable !== true ? ' · 只读' : ''),
-              ),
+              {
+                style: { display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, flex: '1 1 auto', cursor: writable ? 'pointer' : 'default' },
+                title: writable ? '查看详情' : undefined,
+                onClick: writable
+                  ? function () {
+                      openDetail(skill.folder)
+                    }
+                  : undefined,
+              },
+              h('span', { style: Object.assign({}, styles.rowTitle, { flex: '0 0 auto' }) }, String(skill.name)),
+              skill.description === '' ? null : h('span', { style: Object.assign({}, styles.hint, styles.clamp1, { minWidth: 0 }) }, String(skill.description)),
             ),
             h(
               'div',
-              { style: styles.actions },
-              source.writable !== true
-                ? h(Pill, { label: '开关', value: '只读', tone: 'muted' })
-                : h(Btn, { label: '详情', variant: 'small', disabled: tree.busy !== '', onClick: function () { openDetail(skill.folder) } }),
+              { style: { display: 'flex', alignItems: 'center', gap: '6px', flex: '0 0 auto' } },
+              skill.enabledEditable !== true ? h('span', { style: styles.hint }, '只读') : null,
+              writable
+                ? h(IconBtn, {
+                    glyph: '🗑',
+                    danger: true,
+                    ariaLabel: '卸载 ' + String(skill.name),
+                    disabled: tree.busy !== '',
+                    onClick: function () {
+                      planUninstall(skill.folder)
+                    },
+                  })
+                : null,
               skill.enabledEditable !== true
                 ? null
                 : h(Toggle, {
@@ -2570,9 +2594,6 @@ window.__ModuleLoader__.load({
                       toggleSkill(skill.folder, skill.enabled !== true)
                     },
                   }),
-              source.writable !== true
-                ? null
-                : h(Btn, { label: '卸载…', variant: 'small', disabled: tree.busy !== '', onClick: function () { planUninstall(skill.folder) } }),
             ),
           )
         }
@@ -2619,9 +2640,8 @@ window.__ModuleLoader__.load({
                 { style: styles.actions },
                 renaming
                   ? h(Btn, { label: '保存', variant: 'small', disabled: tree.busy !== '', onClick: saveRename })
-                  : h(Btn, {
-                      label: '＋',
-                      variant: 'small',
+                  : h(IconBtn, {
+                      glyph: '＋',
                       ariaLabel: '把技能加入 ' + String(group.name),
                       disabled: tree.busy !== '' || group.id === 'unassigned',
                       onClick: function () {
@@ -2630,9 +2650,8 @@ window.__ModuleLoader__.load({
                     }),
                 renaming
                   ? h(Btn, { label: '取消', variant: 'small', onClick: function () { patchTree({ edit: null }) } })
-                  : h(Btn, {
-                      label: '改名',
-                      variant: 'small',
+                  : h(IconBtn, {
+                      glyph: '✎',
                       ariaLabel: '重命名 ' + String(group.name),
                       disabled: tree.busy !== '' || group.id === 'unassigned',
                       onClick: function () {
@@ -2641,9 +2660,9 @@ window.__ModuleLoader__.load({
                     }),
                 confirming
                   ? h(Btn, { label: '确认删除分类', variant: 'danger', disabled: tree.busy !== '', onClick: function () { deleteGroup(source.id, group.id) } })
-                  : h(Btn, {
-                      label: '删除',
-                      variant: 'small',
+                  : h(IconBtn, {
+                      glyph: '🗑',
+                      danger: true,
                       ariaLabel: '删除分类 ' + String(group.name) + '（技能回到未分类）',
                       disabled: tree.busy !== '' || group.id === 'unassigned',
                       onClick: function () {
@@ -2677,106 +2696,15 @@ window.__ModuleLoader__.load({
           )
         }
 
-        var renderSource = function (source) {
-          var open = tree.expanded[source.id] !== false
-          var creating = tree.edit !== null && tree.edit.kind === 'create' && tree.edit.sourceId === source.id
-          var groups = visibleGroupsOf(source)
-          return h(
-            'div',
-            { key: source.id, style: styles.sourceCard },
-            h(
-              'div',
-              { style: styles.rowHead },
-              h(
-                'div',
-                { style: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' } },
-                h(Btn, {
-                  label: open ? '▾' : '▸',
-                  variant: 'small',
-                  ariaLabel: '展开或收起 ' + source.label,
-                  onClick: function () {
-                    patchTree({ expanded: Object.assign({}, tree.expanded, { [source.id]: !open }) })
-                  },
-                }),
-                h('span', { style: styles.sourceGlyph }, String(source.label).slice(0, 1)),
-                h('span', { style: styles.sourceTitle }, String(source.label)),
-                h('span', { style: styles.hint }, String(source.total) + ' 个技能'),
-              ),
-              h(
-                'div',
-                { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0 } },
-                h('span', { style: Object.assign({}, styles.hint, styles.mono) }, String(source.root)),
-                h(Btn, {
-                  label: '＋',
-                  variant: 'small',
-                  ariaLabel: '在 ' + String(source.label) + ' 新建分类',
-                  disabled: tree.busy !== '',
-                  onClick: function () {
-                    patchTree({ edit: { kind: 'create', sourceId: source.id, value: '' } })
-                  },
-                }),
-                h(Btn, {
-                  label: '打开目录',
-                  variant: 'small',
-                  ariaLabel: '在文件管理器打开 ' + String(source.root),
-                  disabled: tree.busy !== '' || source.exists !== true,
-                  onClick: function () {
-                    revealSource(source.id)
-                  },
-                }),
-                h(Toggle, {
-                  checked: source.enabled !== false,
-                  disabled: tree.busy !== '',
-                  label: '来源 ' + String(source.label) + ' 启停',
-                  onChange: function () {
-                    toggleSource(source.id, source.enabled === false)
-                  },
-                }),
-              ),
-            ),
-            h(
-              'p',
-              { style: styles.hint },
-              source.exists !== true
-                ? '目录还不存在（未安装或未使用）：' + String(source.root)
-                : source.writable === true
-                  ? '本卡可以真实启停这里的技能：停用会把目录移入 skills-disabled，新会话生效。'
-                  : String(source.note === undefined ? '由 ' + String(source.manager) + ' 自行加载，本卡只读。' : source.note),
-            ),
-            open
-              ? h(
-                  'div',
-                  { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' } },
-                  groups.map(function (group) {
-                    return renderGroup(source, group)
-                  }),
-                  creating
-                    ? h(
-                        'div',
-                        { style: Object.assign({}, styles.row, { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }) },
-                        h('input', {
-                          style: Object.assign({}, styles.input, { width: '180px' }),
-                          placeholder: '分类名称，例如 QQ-Skill',
-                          value: tree.edit.value,
-                          autoFocus: true,
-                          onChange: function (event) {
-                            patchTree({ edit: Object.assign({}, tree.edit, { value: event.target.value }) })
-                          },
-                        }),
-                        h(Btn, { label: '创建分类', variant: 'primary', disabled: tree.busy !== '', onClick: createGroup }),
-                        h(Btn, { label: '取消', onClick: function () { patchTree({ edit: null }) } }),
-                      )
-                    : null,
-                )
-              : null,
-          )
-        }
+        var dshSource = treeSources.find(function (src) {
+          return src.writable === true
+        })
 
         skillsTab = h(
           'div',
           { style: styles.root, key: 'skills' },
 
-          h(ClientScopeSection, {}),
+          h(ImportSection, {}),
 
           h(
             Section,
@@ -2784,6 +2712,15 @@ window.__ModuleLoader__.load({
               title: '技能文件夹',
               hint: '按软件来源分组；展开来源与分类查看技能。',
             },
+            dshSource === undefined
+              ? null
+              : h(
+                  'div',
+                  { style: styles.statsBar },
+                  h('span', { style: styles.stat }, h('span', { style: styles.statNum }, String(dshSource.total || 0)), h('span', { style: styles.hint }, '个技能')),
+                  h('span', { style: styles.stat }, h('span', { style: styles.statNum }, String(dshSource.enabledCount || 0)), h('span', { style: styles.hint }, '个已启用')),
+                  h('span', { style: styles.statLast }, h('span', { style: styles.statNum }, String((dshSource.total || 0) - (dshSource.enabledCount || 0))), h('span', { style: styles.hint }, '个已停用')),
+                ),
             h(
               'div',
               { style: { display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' } },
@@ -2812,9 +2749,43 @@ window.__ModuleLoader__.load({
             tree.error === null ? null : h(Banner, { tone: 'bad' }, tree.error),
             tree.status === 'loading' && tree.data === null ? h('p', { style: styles.hint }, '正在读取技能来源…') : null,
             tree.status === 'ready' && treeSources.length === 0 ? h('p', { style: styles.hint }, '没有探测到任何技能来源。') : null,
-            treeSources.map(function (source) {
-              return renderSource(source)
-            }),
+            dshSource === undefined
+              ? null
+              : h(
+                  'div',
+                  { style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
+                  visibleGroupsOf(dshSource).map(function (group) {
+                    return renderGroup(dshSource, group)
+                  }),
+                  tree.edit !== null && tree.edit.kind === 'create' && tree.edit.sourceId === dshSource.id
+                    ? h(
+                        'div',
+                        { style: Object.assign({}, styles.row, { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: '6px' }) },
+                        h('input', {
+                          style: Object.assign({}, styles.input, { width: '180px' }),
+                          placeholder: '分类名称，例如 QQ-Skill',
+                          value: tree.edit.value,
+                          autoFocus: true,
+                          onChange: function (event) {
+                            patchTree({ edit: Object.assign({}, tree.edit, { value: event.target.value }) })
+                          },
+                        }),
+                        h(Btn, { label: '创建分类', variant: 'primary', disabled: tree.busy !== '', onClick: createGroup }),
+                        h(Btn, { label: '取消', onClick: function () { patchTree({ edit: null }) } }),
+                      )
+                    : h(
+                        'div',
+                        { style: { marginTop: '6px' } },
+                        h(Btn, {
+                          label: '＋ 新建分类',
+                          variant: 'small',
+                          disabled: tree.busy !== '',
+                          onClick: function () {
+                            patchTree({ edit: { kind: 'create', sourceId: dshSource.id, value: '' } })
+                          },
+                        }),
+                      ),
+                ),
             tree.data !== null && tree.data.note !== undefined ? h('p', { style: styles.hint }, String(tree.data.note)) : null,
           ),
 

@@ -1,6 +1,6 @@
 // Whole-plugin load test: activate the real `apply()` against a host-shaped
 // context, then serve the exact routes it registered over a real HTTP server and
-// query them. This proves the 0.8.0 build loads and serves every surface a DSH
+// query them. This proves the 0.9.0 build loads and serves every surface a DSH
 // restart will expose, without needing to restart the desktop app.
 import http from 'node:http'
 import { mkdtempSync } from 'node:fs'
@@ -57,7 +57,7 @@ async function post(path, body) {
 }
 
 const caps = await get('/dsh-brain/capabilities')
-check('capabilities answers with 0.8.0', caps.body?.version === '0.8.0', String(caps.body?.version))
+check('capabilities answers with 0.8.0', caps.body?.version === '0.9.0', String(caps.body?.version))
 check('P3 market is advertised with one provider', caps.body?.features?.skillsMarketplace === true && caps.body?.features?.marketProviders === 1)
 check('P3 update and sync-resolve are advertised', caps.body?.features?.skillUpdate === true && caps.body?.features?.syncResolve === true)
 check('P4/P5/v1.1 flags are advertised', caps.body?.features?.multiClient === true && caps.body?.features?.brainMigration === 'ready')

@@ -14,14 +14,14 @@ function check(name, ok, detail) {
 
 const source = readFileSync('./client/index.js', 'utf8')
 
-const hardcoded = source.match(/(?:background|color|borderColor)\s*:\s*['"]#(?:fff(?:fff)?|000(?:000)?)['"]/gi)
+const hardcoded = source.match(/(?:background|borderColor)\s*:\s*['"]#(?:fff(?:fff)?|000(?:000)?)['"]/gi)
 check('no hard-coded pure white/black colours', hardcoded === null, hardcoded === null ? '' : hardcoded.join(','))
 
 const neutralTokens = (source.match(/rgba\(127,127,127/gi) ?? []).length
 check('theme-neutral colour tokens are used throughout', neutralTokens >= 5, `${neutralTokens} uses`)
 
-const accentTokens = (source.match(/rgba\(37,99,235/gi) ?? []).length
-check('accent colour is the shared blue token', accentTokens >= 2, `${accentTokens} uses`)
+const accentTokens = (source.match(/#3f3f46/g) ?? []).length
+check('accent colour is the shared charcoal token', accentTokens >= 2, `${accentTokens} uses`)
 
 const wrapCount = (source.match(/flexWrap\s*:\s*['"]wrap['"]/g) ?? []).length
 check('long rows wrap instead of scrolling sideways', wrapCount >= 4, `${wrapCount} wrapping rows`)

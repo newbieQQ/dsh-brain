@@ -679,6 +679,7 @@ async function serveSkills(deps: RouteDeps, req: IncomingMessage, res: ServerRes
   // base URL; they are grouped here because they never touch a skill folder
   // directly (except the DSH park/unpark the group manager delegates).
   const groupActions: Record<string, Handler> = {
+    '/import': async (body) => ({ ...(await requireGroups(deps).importSkill(body.sourceId, body.folder)) }),
     '/groups/create': async (body) => ({ ...(await requireGroups(deps).createGroup(body.sourceId, body.name)) }),
     '/groups/rename': async (body) => ({ ...(await requireGroups(deps).renameGroup(body.sourceId, body.groupId, body.name)) }),
     '/groups/delete': async (body) => ({ ...(await requireGroups(deps).deleteGroup(body.sourceId, body.groupId)) }),
@@ -722,6 +723,8 @@ function groupStatus(code: string): number {
     case 'unknown_source': return 404
     case 'invalid_name':
     case 'duplicate':
+    case 'import_from_self':
+    case 'invalid_skill':
     case 'too_many': return 400
     case 'unavailable': return 503
     default: return 500

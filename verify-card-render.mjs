@@ -470,23 +470,21 @@ check('the search limit is renamed and reachable', connection.includes('单次�
 check('no render boundary error on the connection tab', !connection.includes('渲染失败'))
 
 const skillsText = await drive('skills', true)
-check('the skills tab renders its sections', ['技能文件夹', '从 Git 仓库安装', '技能市场', '云端同步与冲突'].every((label) => skillsText.includes(label)))
-check('the tree shows every detected source with its path',
-  skillsText.includes('DSH') && skillsText.includes('Codex') && skillsText.includes('C:/Users/test/.dsh/skills') && skillsText.includes('2 个技能'))
+check('the skills tab renders its sections', ['从其他软件导入', '技能文件夹', '从 Git 仓库安装', '技能市场', '云端同步与冲突'].every((label) => skillsText.includes(label)))
+check('the tree is DSH-only: no source card, no foreign sources',
+  !skillsText.includes('C:/Users/test/.dsh/skills') && !skillsText.includes('由 Codex 自行加载'))
 check('categories render with their counts', skillsText.includes('QQ-Skill') && skillsText.includes('1 项 · 1/1 启用') && skillsText.includes('未分类'))
 check('the metadata-only promise is on screen', skillsText.includes('分类只记在这个来源里，不移动文件'))
-check('a foreign source is marked card-only', skillsText.includes('仅本卡') && skillsText.includes('本卡不修改'))
+check('foreign sources appear only as import candidates',
+  skillsText.includes('Codex') && !skillsText.includes('仅本卡'))
 
 // Categories start collapsed; expanding one must reveal its skills.
 const expandedSkills = await drive('skills', true, '展开或收起 未分类')
 check('a collapsed category hides its skills', !skillsText.includes('parked-one'))
 check('expanding a category reveals its skill rows',
-  expandedSkills.includes('parked-one') && expandedSkills.includes('32 B'))
-check('a DSH skill row offers detail, a switch and uninstall',
-  expandedSkills.includes('详情') && expandedSkills.includes('卸载…'))
-const foreignSkills = await drive('skills', true, '展开或收起 未分类', 1)
-check('a foreign skill row is marked read-only',
-  foreignSkills.includes('codex-one') && foreignSkills.includes('只读'))
+  expandedSkills.includes('parked-one'))
+check('skill rows stay slim: no inline meta line or text actions',
+  !expandedSkills.includes('32 B') && !expandedSkills.includes('卸载…'))
 check('the market gap is stated instead of simulated', skillsText.includes('能力缺口') || skillsText.includes('没有接入经验证的市场来源'))
 check('no render boundary error on the skills tab', !skillsText.includes('渲染失败'))
 

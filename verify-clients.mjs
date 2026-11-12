@@ -82,7 +82,7 @@ const server = http.createServer((req, res) => {
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const origin = `http://127.0.0.1:${server.address().port}`
 const capsRes = await fetch(`${origin}/dsh-brain/capabilities`).then((r) => r.json())
-check('capabilities advertise multiClient', capsRes.features?.multiClient === true && capsRes.features?.brainMigration === 'pending-deploy')
+check('capabilities advertise multiClient', capsRes.features?.multiClient === true && capsRes.features?.brainMigration === 'ready')
 const overview = await fetch(`${origin}/dsh-brain/clients/overview`).then((r) => r.json())
 check('overview route lists adapters and workspaces', overview.ok === true && overview.adapters.length === 6 && Array.isArray(overview.workspaces.dsh))
 const invRoute = await fetch(`${origin}/dsh-brain/clients/inventory?software=codex&scope=global`).then((r) => r.json())
